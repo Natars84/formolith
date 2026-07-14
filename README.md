@@ -8,7 +8,8 @@ Statut : 🚧 en construction, bloc par bloc.
 
 - **Bloc 1** — Squelette : API FastAPI minimale, endpoint `/health` vérifiant la connexion à Postgres, Alembic initialisé. ✅
 - **Bloc 2** — Modèle de données : tables `forms`, `blocks`, `submissions` + migration Alembic + endpoints `POST /forms` et `GET /forms/{id}` de vérification. ✅
-- **Bloc 3** — À venir.
+- **Bloc 3** — Catalogue des types de blocs (`block_types.py`, validation du `config` selon le `type`) + CRUD complet des blocs (`POST`/`GET`/`PATCH`/`DELETE /forms/{id}/blocks`). Type immuable après création ; réorganisation des positions reportée au Bloc 4. 🚧 en cours de test
+- **Bloc 4** — À venir (design de formulaire : réorganisation des blocs, ...).
 
 ## Modèle de données
 

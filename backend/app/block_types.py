@@ -42,3 +42,9 @@ BLOCK_CONFIG_SCHEMAS: dict[BlockType, type[BaseModel]] = {
     BlockType.checkbox: CheckboxConfig,
     BlockType.select: SelectConfig,
 }
+
+
+#### Valide un config brut selon le type de bloc, renvoie un dict prêt à stocker en JSONB
+def validate_block_config(block_type: BlockType, config: dict) -> dict:
+    schema = BLOCK_CONFIG_SCHEMAS[block_type]
+    return schema(**config).model_dump()

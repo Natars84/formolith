@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.block_types import BlockType, validate_block_config
 from app.database import check_db_connection, get_db
 from app.models import Block, Form
-from app.schemas import BlockCreate, BlockRead, BlockUpdate, FormCreate, FormRead
+from app.schemas import BlockCreate, BlockReorder, BlockRead, BlockUpdate, FormCreate, FormRead
 
 app = FastAPI(title="FormBuilder API", version="0.1.0")
 
@@ -82,6 +82,31 @@ def create_block(form_id: uuid.UUID, payload: BlockCreate, db: Session = Depends
 @app.get("/forms/{form_id}/blocks", response_model=list[BlockRead])
 def list_blocks(form_id: uuid.UUID, db: Session = Depends(get_db)):
     get_form_or_404(form_id, db)
+    return db.query(Block).filter(Block.form_id == form_id).order_by(Block.position).all()
+
+
+#### Réorganise tous les blocs d'un formulaire selon l'ordre de la liste reçue (tout ou rien)
+@app.patch("/forms/{form_id}/blocks/reorder", response_model=list[BlockRead])
+def reorder_blocks(form_id: uuid.UUID, payload: BlockReorder, db: Session = Depends(get_db)):
+    get_form_or_404(form_id, db)
+
+    existing_blocks = db.query(Block).filter(Block.form_id == form_id).all()
+    existing_ids = {block.id for block in existing_blocks}
+    received_ids = payload.block_ids
+
+    #### La liste reçue doit contenir exactement les mêmes blocs que ceux du formulaire, sans doublon
+    if len(received_ids) != len(set(received_ids)):
+        raise HTTPException(status_code=422, detail="La liste contient des doublons")
+    if set(received_ids) != existing_ids:
+        raise HTTPException(status_code=422, detail="La liste doit contenir exactement tous les blocs du formulaire")
+
+    blocks_by_id = {block.id: block for block in existing_blocks}
+    for index, block_id in enumerate(received_ids, start=1):
+        blocks_by_id[block_id].position = index
+
+    #### Un seul commit -> soit toutes les positions changent, soit aucune en cas d'erreur avant ce point
+    db.commit()
+
     return db.query(Block).filter(Block.form_id == form_id).order_by(Block.position).all()
 
 

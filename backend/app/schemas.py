@@ -38,6 +38,11 @@ class BlockUpdate(BaseModel):
     config: dict | None = None
 
 
+#### Données attendues pour réorganiser les blocs -> ordre de la liste = nouvel ordre des positions
+class BlockReorder(BaseModel):
+    block_ids: list[uuid.UUID]
+
+
 #### Données renvoyées par l'API pour un bloc
 class BlockRead(BaseModel):
     id: uuid.UUID

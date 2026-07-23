@@ -5,10 +5,19 @@ from pydantic import ValidationError
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.block_types import BlockType, validate_block_config
+from app.block_types import BlockType, SubmissionValidationError, validate_block_config, validate_submission_data
 from app.database import check_db_connection, get_db
-from app.models import Block, Form
-from app.schemas import BlockCreate, BlockReorder, BlockRead, BlockUpdate, FormCreate, FormRead
+from app.models import Block, Form, Submission
+from app.schemas import (
+    BlockCreate,
+    BlockReorder,
+    BlockRead,
+    BlockUpdate,
+    FormCreate,
+    FormRead,
+    SubmissionCreate,
+    SubmissionRead,
+)
 
 app = FastAPI(title="FormBuilder API", version="0.1.0")
 
@@ -48,6 +57,14 @@ def get_form_or_404(form_id: uuid.UUID, db: Session) -> Form:
     if form is None:
         raise HTTPException(status_code=404, detail="Formulaire introuvable")
     return form
+
+
+#### Supprime un formulaire -> supprime aussi en cascade ses blocs et ses réponses (cascade définie sur le modèle)
+@app.delete("/forms/{form_id}", status_code=204)
+def delete_form(form_id: uuid.UUID, db: Session = Depends(get_db)):
+    form = get_form_or_404(form_id, db)
+    db.delete(form)
+    db.commit()
 
 
 #### Ajoute un bloc à un formulaire, en fin de liste (position calculée automatiquement)
@@ -143,4 +160,60 @@ def update_block(form_id: uuid.UUID, block_id: uuid.UUID, payload: BlockUpdate, 
 def delete_block(form_id: uuid.UUID, block_id: uuid.UUID, db: Session = Depends(get_db)):
     block = get_block_or_404(form_id, block_id, db)
     db.delete(block)
+    db.commit()
+
+
+#### Enregistre une réponse -> chaque valeur est validée contre le bloc réel qu'elle prétend remplir
+@app.post("/forms/{form_id}/submissions", response_model=SubmissionRead)
+def create_submission(form_id: uuid.UUID, payload: SubmissionCreate, db: Session = Depends(get_db)):
+    get_form_or_404(form_id, db)
+
+    blocks = db.query(Block).filter(Block.form_id == form_id).all()
+    try:
+        validated_data = validate_submission_data(blocks, payload.data)
+    except SubmissionValidationError as exc:
+        raise HTTPException(status_code=422, detail=exc.errors)
+
+    submission = Submission(form_id=form_id, data=validated_data)
+    db.add(submission)
+    db.commit()
+    db.refresh(submission)
+    return submission
+
+
+#### Liste les réponses d'un formulaire, les plus récentes en premier
+@app.get("/forms/{form_id}/submissions", response_model=list[SubmissionRead])
+def list_submissions(form_id: uuid.UUID, db: Session = Depends(get_db)):
+    get_form_or_404(form_id, db)
+    return (
+        db.query(Submission)
+        .filter(Submission.form_id == form_id)
+        .order_by(Submission.submitted_at.desc())
+        .all()
+    )
+
+
+#### Va chercher une réponse précise, rattachée au bon formulaire, ou lève une 404
+def get_submission_or_404(form_id: uuid.UUID, submission_id: uuid.UUID, db: Session) -> Submission:
+    submission = (
+        db.query(Submission)
+        .filter(Submission.id == submission_id, Submission.form_id == form_id)
+        .first()
+    )
+    if submission is None:
+        raise HTTPException(status_code=404, detail="Réponse introuvable")
+    return submission
+
+
+#### Relit une réponse précise
+@app.get("/forms/{form_id}/submissions/{submission_id}", response_model=SubmissionRead)
+def read_submission(form_id: uuid.UUID, submission_id: uuid.UUID, db: Session = Depends(get_db)):
+    return get_submission_or_404(form_id, submission_id, db)
+
+
+#### Supprime une réponse (doublon, test, demande de suppression, ...)
+@app.delete("/forms/{form_id}/submissions/{submission_id}", status_code=204)
+def delete_submission(form_id: uuid.UUID, submission_id: uuid.UUID, db: Session = Depends(get_db)):
+    submission = get_submission_or_404(form_id, submission_id, db)
+    db.delete(submission)
     db.commit()

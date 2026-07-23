@@ -55,3 +55,19 @@ class BlockRead(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+#### Données attendues pour enregistrer une réponse (clé = id du bloc, valeur = réponse donnée)
+class SubmissionCreate(BaseModel):
+    data: dict
+
+
+#### Données renvoyées par l'API pour une réponse
+class SubmissionRead(BaseModel):
+    id: uuid.UUID
+    form_id: uuid.UUID
+    data: dict
+    submitted_at: datetime
+
+    class Config:
+        from_attributes = True

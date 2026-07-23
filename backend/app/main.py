@@ -42,6 +42,12 @@ def create_form(payload: FormCreate, db: Session = Depends(get_db)):
     return form
 
 
+#### Liste tous les formulaires, les plus récents en premier
+@app.get("/forms", response_model=list[FormRead])
+def list_forms(db: Session = Depends(get_db)):
+    return db.query(Form).order_by(Form.created_at.desc()).all()
+
+
 #### Relit un formulaire par son id -> valide que la lecture fonctionne aussi
 @app.get("/forms/{form_id}", response_model=FormRead)
 def read_form(form_id: uuid.UUID, db: Session = Depends(get_db)):

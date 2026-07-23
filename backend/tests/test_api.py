@@ -58,6 +58,11 @@ def main():
     check("POST /forms crée un formulaire", status == 200 and "id" in form, f"reçu {status} {form}")
     form_id = form["id"]
 
+    #### 1bis. Le formulaire tout juste créé doit apparaître dans la liste globale
+    status, all_forms = call("GET", "/forms")
+    form_ids = [f["id"] for f in all_forms] if isinstance(all_forms, list) else None
+    check("GET /forms : le formulaire de test apparaît dans la liste", status == 200 and form_ids is not None and form_id in form_ids, f"reçu {status} {all_forms}")
+
     try:
         #### 2. Création des blocs, un de chaque type, avec un état connu
         status, block_text = call(
@@ -93,8 +98,8 @@ def main():
 
         #### 4. Lecture de la liste, positions attendues 1 à 4
         status, blocks = call("GET", f"/forms/{form_id}/blocks")
-        positions = [b["position"] for b in blocks] if blocks else []
-        check("GET /blocks : 4 blocs, positions 1..4", status == 200 and positions == [1, 2, 3, 4], f"reçu {positions}")
+        positions = [b["position"] for b in blocks] if isinstance(blocks, list) else None
+        check("GET /blocks : 4 blocs, positions 1..4", status == 200 and positions == [1, 2, 3, 4], f"reçu {status} {blocks}")
 
         #### 5. Modification d'un bloc (label uniquement)
         status, updated = call("PATCH", f"/forms/{form_id}/blocks/{block_text['id']}", {"label": "Prénom (modifié)"})
@@ -103,8 +108,8 @@ def main():
         #### 6. Réorganisation : on inverse les 4 blocs
         reordered_ids = [block_select["id"], block_checkbox["id"], block_slider["id"], block_text["id"]]
         status, reordered = call("PATCH", f"/forms/{form_id}/blocks/reorder", {"block_ids": reordered_ids})
-        new_positions = [b["id"] for b in reordered] if reordered else []
-        check("PATCH /blocks/reorder : nouvel ordre appliqué", status == 200 and new_positions == reordered_ids, f"reçu {status}")
+        new_positions = [b["id"] for b in reordered] if isinstance(reordered, list) else None
+        check("PATCH /blocks/reorder : nouvel ordre appliqué", status == 200 and new_positions == reordered_ids, f"reçu {status} {reordered}")
 
         #### 7. Rejet d'une réorganisation incomplète
         status, err = call("PATCH", f"/forms/{form_id}/blocks/reorder", {"block_ids": [block_text["id"]]})

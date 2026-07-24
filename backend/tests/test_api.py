@@ -243,8 +243,41 @@ def main():
         status, _ = call("DELETE", f"/forms/{form_id}/blocks/{block_checkbox['id']}")
         check("DELETE /blocks/{id} : supprime (204)", status == 204, f"reçu {status}")
 
+        #### 17. Duplication : nouveau formulaire en draft, mêmes blocs, aucune réponse copiée
+        status, current_blocks = call("GET", f"/forms/{form_id}/blocks")
+        original_block_count = len(current_blocks) if isinstance(current_blocks, list) else None
+
+        status, duplicate = call("POST", f"/forms/{form_id}/duplicate")
+        duplicate_created = status == 200 and isinstance(duplicate, dict) and "id" in duplicate
+        check(
+            "POST /forms/{id}/duplicate : crée une copie en draft",
+            duplicate_created and duplicate.get("status") == "draft" and duplicate.get("title", "").endswith("(copie)"),
+            f"reçu {status} {duplicate}",
+        )
+
+        if duplicate_created:
+            duplicate_id = duplicate["id"]
+            try:
+                status, dup_blocks = call("GET", f"/forms/{duplicate_id}/blocks")
+                dup_count = len(dup_blocks) if isinstance(dup_blocks, list) else None
+                check(
+                    "Duplication : même nombre de blocs que l'original",
+                    dup_count is not None and dup_count == original_block_count,
+                    f"original={original_block_count} copie={dup_count}",
+                )
+
+                status, dup_submissions = call("GET", f"/forms/{duplicate_id}/submissions")
+                check(
+                    "Duplication : aucune réponse copiée",
+                    status == 200 and isinstance(dup_submissions, list) and len(dup_submissions) == 0,
+                    f"reçu {status} {dup_submissions}",
+                )
+            finally:
+                status, _ = call("DELETE", f"/forms/{duplicate_id}")
+                check("DELETE /forms/{id} : nettoyage du formulaire dupliqué (204)", status == 204, f"reçu {status}")
+
     finally:
-        #### 17. Nettoyage systématique -> supprime le formulaire de test, cascade sur ses blocs restants
+        #### 18. Nettoyage systématique -> supprime le formulaire de test, cascade sur ses blocs restants
         status, _ = call("DELETE", f"/forms/{form_id}")
         check("DELETE /forms/{id} : nettoyage du formulaire de test (204)", status == 204, f"reçu {status}")
 
@@ -254,6 +287,7 @@ def main():
     print(f"\n{passed}/{total} tests passés")
     if passed != total:
         exit(1)
+
 
 if __name__ == "__main__":
     main()

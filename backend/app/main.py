@@ -15,6 +15,7 @@ from app.schemas import (
     BlockUpdate,
     FormCreate,
     FormRead,
+    FormUpdate,
     SubmissionCreate,
     SubmissionRead,
 )
@@ -54,6 +55,21 @@ def read_form(form_id: uuid.UUID, db: Session = Depends(get_db)):
     form = db.get(Form, form_id)
     if form is None:
         raise HTTPException(status_code=404, detail="Formulaire introuvable")
+    return form
+
+
+#### Modifie un formulaire existant (titre et/ou statut)
+@app.patch("/forms/{form_id}", response_model=FormRead)
+def update_form(form_id: uuid.UUID, payload: FormUpdate, db: Session = Depends(get_db)):
+    form = get_form_or_404(form_id, db)
+
+    if payload.title is not None:
+        form.title = payload.title
+    if payload.status is not None:
+        form.status = payload.status
+
+    db.commit()
+    db.refresh(form)
     return form
 
 
@@ -172,7 +188,11 @@ def delete_block(form_id: uuid.UUID, block_id: uuid.UUID, db: Session = Depends(
 #### Enregistre une réponse -> chaque valeur est validée contre le bloc réel qu'elle prétend remplir
 @app.post("/forms/{form_id}/submissions", response_model=SubmissionRead)
 def create_submission(form_id: uuid.UUID, payload: SubmissionCreate, db: Session = Depends(get_db)):
-    get_form_or_404(form_id, db)
+    form = get_form_or_404(form_id, db)
+
+    #### Seul un formulaire publié peut recevoir des réponses
+    if form.status != "published":
+        raise HTTPException(status_code=403, detail="Ce formulaire n'accepte pas de réponses pour le moment")
 
     blocks = db.query(Block).filter(Block.form_id == form_id).all()
     try:

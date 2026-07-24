@@ -6,22 +6,38 @@ Crée un formulaire dédié aux tests, y ajoute des blocs de chaque type,
 vérifie le comportement de chaque endpoint (cas valides ET invalides),
 puis supprime tout ce qu'il a créé, même en cas d'échec en cours de route.
 
+Avant de lancer les tests, vérifie que l'URL cible répond. Si ce n'est
+pas le cas (argument fourni, variable d'environnement, ou défaut local),
+demande l'URL à saisir, jusqu'à en trouver une qui répond.
+
 Usage :
     python3 test_api.py
+    python3 test_api.py http://192.168.1.50:8000
     FORMOLITH_API_URL=http://formolith.cutlass.red python3 test_api.py
 """
 import json
 import os
+import sys
 import urllib.error
 import urllib.request
 
-BASE_URL = os.environ.get("FORMOLITH_API_URL", "http://localhost:8000")
+BASE_URL = None  # défini par resolve_base_url() au lancement
 
 #### Résultats accumulés au fil des tests, affichés en résumé à la fin
 results = []
 
 
-#### Fait un appel HTTP brut, renvoie (status_code, corps_json_ou_None)
+#### Décode le corps de la réponse en JSON ; si ce n'est pas du JSON valide, renvoie un aperçu brut plutôt que de crasher
+def parse_body(raw: bytes):
+    if not raw:
+        return None
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        return {"_raw_response": raw.decode(errors="replace")[:500]}
+
+
+#### Fait un appel HTTP brut, renvoie (status_code, corps_décodé) -> ne lève jamais d'exception
 def call(method: str, path: str, body: dict | None = None):
     url = f"{BASE_URL}{path}"
     data = json.dumps(body).encode() if body is not None else None
@@ -29,11 +45,40 @@ def call(method: str, path: str, body: dict | None = None):
     req.add_header("Content-Type", "application/json")
     try:
         with urllib.request.urlopen(req) as response:
-            raw = response.read()
-            return response.status, (json.loads(raw) if raw else None)
+            return response.status, parse_body(response.read())
     except urllib.error.HTTPError as exc:
-        raw = exc.read()
-        return exc.code, (json.loads(raw) if raw else None)
+        return exc.code, parse_body(exc.read())
+    except urllib.error.URLError as exc:
+        return None, {"_error": str(exc)}
+    except Exception as exc:
+        return None, {"_error": f"{type(exc).__name__}: {exc}"}
+
+
+#### Teste si une URL donnée répond sur /health, sans lever d'exception
+def is_reachable(url: str) -> bool:
+    try:
+        with urllib.request.urlopen(f"{url}/health", timeout=3):
+            return True
+    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError):
+        return False
+
+
+#### Détermine l'URL cible : argument > variable d'env > défaut local, puis demande tant que ça ne répond pas
+def resolve_base_url() -> str:
+    if len(sys.argv) > 1:
+        candidate = sys.argv[1].rstrip("/")
+    else:
+        candidate = os.environ.get("FORMOLITH_API_URL", "http://localhost:8000").rstrip("/")
+
+    while not is_reachable(candidate):
+        print(f"Impossible de joindre {candidate}")
+        candidate = input("URL de l'API (ex: http://192.168.1.50:8000), vide pour quitter : ").strip().rstrip("/")
+        if candidate == "":
+            print("Abandon, aucune URL valide fournie.")
+            sys.exit(1)
+
+    print(f"Cible : {candidate}\n")
+    return candidate
 
 
 #### Enregistre le résultat d'un test et l'affiche immédiatement
@@ -47,7 +92,8 @@ def check(name: str, condition: bool, detail: str = ""):
 
 
 def main():
-    print(f"Cible : {BASE_URL}\n")
+    global BASE_URL
+    BASE_URL = resolve_base_url()
 
     #### 0. Sanité de base avant de commencer quoi que ce soit
     status, body = call("GET", "/health")
@@ -55,7 +101,16 @@ def main():
 
     #### 1. Création du formulaire dédié aux tests
     status, form = call("POST", "/forms", {"title": "Formulaire de test (script automatique)"})
-    check("POST /forms crée un formulaire", status == 200 and "id" in form, f"reçu {status} {form}")
+    form_created = status == 200 and isinstance(form, dict) and "id" in form
+    check("POST /forms crée un formulaire", form_created, f"reçu {status} {form}")
+
+    if not form_created:
+        print("\nImpossible de continuer sans formulaire valide, arrêt des tests.")
+        total = len(results)
+        passed = sum(1 for _, ok in results if ok)
+        print(f"{passed}/{total} tests passés")
+        sys.exit(1)
+
     form_id = form["id"]
 
     #### 1bis. Le formulaire tout juste créé doit apparaître dans la liste globale
@@ -115,6 +170,17 @@ def main():
         status, err = call("PATCH", f"/forms/{form_id}/blocks/reorder", {"block_ids": [block_text["id"]]})
         check("PATCH /blocks/reorder : liste incomplète rejetée (422)", status == 422, f"reçu {status} {err}")
 
+        #### 7bis. Un formulaire encore en draft (statut par défaut à la création) doit refuser toute réponse
+        status, err = call(
+            "POST", f"/forms/{form_id}/submissions",
+            {"data": {block_text["id"]: "Jean", block_slider["id"]: 5, block_checkbox["id"]: True, block_select["id"]: "Débutant"}},
+        )
+        check("POST /submissions : formulaire en draft rejeté (403)", status == 403, f"reçu {status} {err}")
+
+        #### 7ter. On publie le formulaire -> les réponses suivantes doivent être acceptées
+        status, published_form = call("PATCH", f"/forms/{form_id}", {"status": "published"})
+        check("PATCH /forms : passage en published", status == 200 and published_form.get("status") == "published", f"reçu {status} {published_form}")
+
         #### 8. Réponse valide (tous les blocs correctement remplis)
         status, submission = call(
             "POST", f"/forms/{form_id}/submissions",
@@ -125,7 +191,10 @@ def main():
                 block_select["id"]: "Débutant",
             }},
         )
-        check("POST /submissions : réponse valide acceptée", status == 200, f"reçu {status} {submission}")
+        submission_created = status == 200 and isinstance(submission, dict) and "id" in submission
+        check("POST /submissions : réponse valide acceptée", submission_created, f"reçu {status} {submission}")
+
+        submission_id = submission["id"] if submission_created else "00000000-0000-0000-0000-000000000000"
 
         #### 9. Rejet : champ requis manquant (le texte, marqué required)
         status, err = call(
@@ -160,11 +229,11 @@ def main():
         check("GET /submissions : exactement 1 réponse enregistrée", status == 200 and len(submissions) == 1, f"reçu {len(submissions) if submissions else 0}")
 
         #### 14. Lecture d'une réponse précise
-        status, one = call("GET", f"/forms/{form_id}/submissions/{submission['id']}")
-        check("GET /submissions/{id} : relit la bonne réponse", status == 200 and one["id"] == submission["id"], f"reçu {status}")
+        status, one = call("GET", f"/forms/{form_id}/submissions/{submission_id}")
+        check("GET /submissions/{id} : relit la bonne réponse", status == 200 and isinstance(one, dict) and one.get("id") == submission_id, f"reçu {status} {one}")
 
         #### 15. Suppression d'une réponse
-        status, _ = call("DELETE", f"/forms/{form_id}/submissions/{submission['id']}")
+        status, _ = call("DELETE", f"/forms/{form_id}/submissions/{submission_id}")
         check("DELETE /submissions/{id} : supprime (204)", status == 204, f"reçu {status}")
 
         status, submissions = call("GET", f"/forms/{form_id}/submissions")
@@ -185,7 +254,6 @@ def main():
     print(f"\n{passed}/{total} tests passés")
     if passed != total:
         exit(1)
-
 
 if __name__ == "__main__":
     main()

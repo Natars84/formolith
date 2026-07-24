@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel
 
@@ -9,6 +10,12 @@ from app.block_types import BlockType
 #### Données attendues pour créer un formulaire
 class FormCreate(BaseModel):
     title: str
+
+
+#### Données attendues pour modifier un formulaire existant (tout optionnel)
+class FormUpdate(BaseModel):
+    title: str | None = None
+    status: Literal["draft", "published", "archived"] | None = None
 
 
 #### Données renvoyées par l'API pour un formulaire

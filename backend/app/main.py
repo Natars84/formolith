@@ -89,6 +89,31 @@ def delete_form(form_id: uuid.UUID, db: Session = Depends(get_db)):
     db.commit()
 
 
+#### Duplique un formulaire et ses blocs -> la copie repart en draft, les réponses ne sont jamais copiées
+@app.post("/forms/{form_id}/duplicate", response_model=FormRead)
+def duplicate_form(form_id: uuid.UUID, db: Session = Depends(get_db)):
+    original = get_form_or_404(form_id, db)
+
+    duplicate = Form(title=f"{original.title} (copie)", status="draft")
+    db.add(duplicate)
+    db.flush()  # attribue un id à duplicate sans encore valider la transaction, pour pouvoir l'utiliser ci-dessous
+
+    original_blocks = db.query(Block).filter(Block.form_id == form_id).order_by(Block.position).all()
+    for block in original_blocks:
+        db.add(Block(
+            form_id=duplicate.id,
+            position=block.position,
+            type=block.type,
+            label=block.label,
+            required=block.required,
+            config=block.config,
+        ))
+
+    db.commit()
+    db.refresh(duplicate)
+    return duplicate
+
+
 #### Ajoute un bloc à un formulaire, en fin de liste (position calculée automatiquement)
 @app.post("/forms/{form_id}/blocks", response_model=BlockRead)
 def create_block(form_id: uuid.UUID, payload: BlockCreate, db: Session = Depends(get_db)):

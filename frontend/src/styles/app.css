@@ -219,6 +219,57 @@
   border-bottom: none;
 }
 
+.btn--danger {
+  background: transparent;
+  border-color: var(--color-warn);
+  color: var(--color-warn);
+}
+.btn--danger:hover {
+  background: var(--color-warn-soft);
+}
+
+.btn--icon {
+  width: 40px;
+  padding: 0;
+  border-color: transparent;
+}
+.btn--icon:hover {
+  border-color: var(--color-border);
+}
+
+.back-link {
+  border: none;
+  padding-left: 0;
+  margin-bottom: var(--space-3);
+  color: var(--color-ink-soft);
+}
+.back-link:hover {
+  background: transparent;
+  color: var(--color-ink);
+}
+
+.hub-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+  color: var(--color-ink-soft);
+  font-size: var(--text-sm);
+}
+
+.hub-actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.section-title {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  margin: 0 0 var(--space-2);
+}
+
 /* États : chargement / vide / erreur */
 .state-panel {
   display: flex;

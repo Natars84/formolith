@@ -63,12 +63,43 @@
   background: var(--color-surface);
   border-color: var(--color-border);
   color: var(--color-ink-soft);
-  padding: 0 var(--space-2);
+  padding: 0;
+  width: 44px;
 }
 .btn--toggle[aria-pressed="true"] {
   background: var(--color-accent-soft);
   border-color: var(--color-accent);
   color: var(--color-accent-dark);
+}
+
+/* Groupe de boutons accolés (toggle cartes/tableau) */
+[role="group"] {
+  display: inline-flex;
+}
+[role="group"] .btn--toggle {
+  border-radius: 0;
+}
+[role="group"] .btn--toggle:first-child {
+  border-top-left-radius: var(--radius-sm);
+  border-bottom-left-radius: var(--radius-sm);
+}
+[role="group"] .btn--toggle:last-child {
+  border-top-right-radius: var(--radius-sm);
+  border-bottom-right-radius: var(--radius-sm);
+  border-left: none;
+}
+
+/* Visible seulement par les lecteurs d'écran */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 /* Badge de statut */

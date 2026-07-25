@@ -1,6 +1,7 @@
 import uuid
 
 from fastapi import Depends, FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import ValidationError
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -22,6 +23,14 @@ from app.schemas import (
 
 app = FastAPI(title="FormBuilder API", version="0.1.0")
 
+#### Autorise le frontend (autre origine que l'API) à faire des appels depuis le navigateur
+#### TODO : restreindre à l'origine réelle du frontend une fois déployé, plutôt que "*"
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 #### Vérifie que l'API et la base de données sont opérationnelles
 @app.get("/health")

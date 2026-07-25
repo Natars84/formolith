@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { LayoutGrid, List } from "lucide-react";
 import { listForms, createForm } from "../lib/api";
 import StatusBadge from "../components/StatusBadge";
 
@@ -57,17 +58,21 @@ export default function FormsList() {
                 type="button"
                 className="btn btn--toggle"
                 aria-pressed={view === "cards"}
+                title="Vue en cartes"
                 onClick={() => switchView("cards")}
               >
-                Cartes
+                <LayoutGrid size={18} aria-hidden="true" />
+                <span className="sr-only">Vue en cartes</span>
               </button>
               <button
                 type="button"
                 className="btn btn--toggle"
                 aria-pressed={view === "table"}
+                title="Vue en tableau"
                 onClick={() => switchView("table")}
               >
-                Tableau
+                <List size={18} aria-hidden="true" />
+                <span className="sr-only">Vue en tableau</span>
               </button>
             </div>
           )}

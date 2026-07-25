@@ -6,8 +6,8 @@ export default function FormBuilder() {
 
   return (
     <div className="page">
-      <Link to="/" className="btn btn--ghost">
-        ← Retour aux formulaires
+      <Link to={`/forms/${formId}`} className="btn btn--ghost back-link">
+        ← Retour à la gestion du formulaire
       </Link>
       <div className="state-panel">
         <p className="state-panel__title">Builder à venir</p>

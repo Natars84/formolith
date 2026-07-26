@@ -2,6 +2,17 @@ import { useState } from "react";
 import { marked } from "marked";
 import DOMPurify from "dompurify";
 
+//// Ouvre les liens créés en Markdown dans un nouvel onglet plutôt que dans
+//// la page courante (rel="noopener noreferrer" : bonne pratique de sécurité
+//// systématique avec target="_blank", évite qu'une page ouverte accède à
+//// window.opener).
+const markdownRenderer = new marked.Renderer();
+markdownRenderer.link = function ({ href, title, tokens }) {
+  const text = this.parser.parseInline(tokens);
+  const titleAttr = title ? ` title="${title}"` : "";
+  return `<a href="${href}"${titleAttr} target="_blank" rel="noopener noreferrer">${text}</a>`;
+};
+
 //// En Markdown standard, du texte juste après une liste (sans ligne vide entre
 //// les deux) est considéré comme la suite du dernier point, pas un nouveau
 //// paragraphe. Peu intuitif pour qui ne connaît pas cette règle -> on la corrige
@@ -75,6 +86,12 @@ export default function FieldRenderer({ block }) {
     );
   }
 
+  if (type === "datetime") {
+    //// Chaque mode correspond à un input HTML natif -> sélecteur date/heure fourni par le navigateur
+    const htmlType = { date: "date", time: "time", datetime: "datetime-local" }[config.mode || "date"];
+    return <input type={htmlType} />;
+  }
+
   if (type === "checkbox") {
     return (
       <label className="field-preview__checkbox">
@@ -131,9 +148,13 @@ export default function FieldRenderer({ block }) {
   }
 
   if (type === "markdown") {
-    //// marked convertit le Markdown en HTML ; DOMPurify assainit avant l'injection,
-    //// par prudence même si le contenu vient toujours d'un compte de confiance pour l'instant.
-    const html = DOMPurify.sanitize(marked.parse(ensureBlankLineAfterLists(config.content || "")));
+    //// marked convertit le Markdown en HTML (liens ouverts en nouvel onglet via
+    //// markdownRenderer) ; DOMPurify assainit ensuite avant l'injection, par
+    //// prudence même si le contenu vient toujours d'un compte de confiance pour
+    //// l'instant. target/rel explicitement autorisés pour ne pas dépendre d'un
+    //// comportement par défaut non vérifié.
+    const rawHtml = marked.parse(ensureBlankLineAfterLists(config.content || ""), { renderer: markdownRenderer });
+    const html = DOMPurify.sanitize(rawHtml, { ADD_ATTR: ["target", "rel"] });
     return <div className="field-preview__markdown" dangerouslySetInnerHTML={{ __html: html }} />;
   }
 

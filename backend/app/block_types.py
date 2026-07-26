@@ -9,11 +9,13 @@ class TextConfig(BaseModel):
     max_length: int | None = None
 
 
-#### Config attendue pour un curseur
-class SliderConfig(BaseModel):
+#### Config attendue pour un champ numérique -> un input nombre par défaut,
+#### avec un curseur additionnel en option (partage la même valeur)
+class NumberConfig(BaseModel):
     min: int
     max: int
     step: int = 1
+    show_slider: bool = False
 
 
 #### Config attendue pour une case à cocher isolée (ex: "J'accepte les CGU")
@@ -56,7 +58,7 @@ class DividerConfig(BaseModel):
 
 class BlockType(str, Enum):
     text = "text"
-    slider = "slider"
+    number = "number"
     checkbox = "checkbox"
     select = "select"
     paragraph = "paragraph"
@@ -79,7 +81,7 @@ NON_INPUT_BLOCK_TYPES = {
 #### Un seul endroit qui relie chaque type à sa config attendue
 BLOCK_CONFIG_SCHEMAS: dict[BlockType, type[BaseModel]] = {
     BlockType.text: TextConfig,
-    BlockType.slider: SliderConfig,
+    BlockType.number: NumberConfig,
     BlockType.checkbox: CheckboxConfig,
     BlockType.select: SelectConfig,
     BlockType.paragraph: ParagraphConfig,
@@ -115,7 +117,7 @@ def validate_block_value(block_type: str, config: dict, value):
             raise ValueError(f"dépasse la longueur maximale ({max_length} caractères)")
         return value
 
-    if block_type == BlockType.slider:
+    if block_type == BlockType.number:
         if not isinstance(value, (int, float)) or isinstance(value, bool):
             raise ValueError("doit être un nombre")
         if not (config["min"] <= value <= config["max"]):

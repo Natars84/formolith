@@ -28,11 +28,52 @@ class SelectConfig(BaseModel):
     display: Literal["dropdown", "inline"] = "dropdown"
 
 
+#### Config attendue pour un paragraphe explicatif -> ne collecte aucune réponse
+class ParagraphConfig(BaseModel):
+    content: str = ""
+
+
+#### Config attendue pour un bloc Markdown -> ne collecte aucune réponse
+class MarkdownConfig(BaseModel):
+    content: str = ""
+
+
+#### Config attendue pour un titre de section -> ne collecte aucune réponse
+class HeadingConfig(BaseModel):
+    content: str = ""
+    level: int = 2  # H1 à H6
+
+
+#### Config attendue pour un espaceur -> ne collecte aucune réponse
+class SpacerConfig(BaseModel):
+    height: int = 24  # en pixels
+
+
+#### Config attendue pour une ligne séparatrice -> ne collecte aucune réponse, aucun réglage
+class DividerConfig(BaseModel):
+    pass
+
+
 class BlockType(str, Enum):
     text = "text"
     slider = "slider"
     checkbox = "checkbox"
     select = "select"
+    paragraph = "paragraph"
+    markdown = "markdown"
+    heading = "heading"
+    spacer = "spacer"
+    divider = "divider"
+
+
+#### Types qui ne collectent aucune donnée -> jamais "required", toujours ignorés à la validation d'une réponse
+NON_INPUT_BLOCK_TYPES = {
+    BlockType.paragraph,
+    BlockType.markdown,
+    BlockType.heading,
+    BlockType.spacer,
+    BlockType.divider,
+}
 
 
 #### Un seul endroit qui relie chaque type à sa config attendue
@@ -41,6 +82,11 @@ BLOCK_CONFIG_SCHEMAS: dict[BlockType, type[BaseModel]] = {
     BlockType.slider: SliderConfig,
     BlockType.checkbox: CheckboxConfig,
     BlockType.select: SelectConfig,
+    BlockType.paragraph: ParagraphConfig,
+    BlockType.markdown: MarkdownConfig,
+    BlockType.heading: HeadingConfig,
+    BlockType.spacer: SpacerConfig,
+    BlockType.divider: DividerConfig,
 }
 
 
@@ -95,7 +141,8 @@ def validate_block_value(block_type: str, config: dict, value):
 
 #### Valide une réponse complète (dict clé=block_id -> valeur) contre les blocs réels du formulaire
 def validate_submission_data(blocks: list, data: dict) -> dict:
-    blocks_by_id = {str(block.id): block for block in blocks}
+    #### Un paragraphe ne collecte rien -> il ne compte ni comme "attendu" ni comme "inconnu"
+    blocks_by_id = {str(block.id): block for block in blocks if BlockType(block.type) not in NON_INPUT_BLOCK_TYPES}
     errors = []
     validated = {}
 

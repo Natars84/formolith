@@ -35,6 +35,7 @@ class BlockCreate(BaseModel):
     type: BlockType
     label: str
     required: bool = False
+    width: Literal["full", "half", "third"] = "full"
     config: dict = {}
 
 
@@ -42,6 +43,7 @@ class BlockCreate(BaseModel):
 class BlockUpdate(BaseModel):
     label: str | None = None
     required: bool | None = None
+    width: Literal["full", "half", "third"] | None = None
     config: dict | None = None
 
 
@@ -58,6 +60,7 @@ class BlockRead(BaseModel):
     type: str
     label: str
     required: bool
+    width: str
     config: dict
 
     class Config:

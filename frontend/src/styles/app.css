@@ -482,6 +482,17 @@
   background: var(--color-bg);
 }
 
+.field-preview input[type="date"],
+.field-preview input[type="time"],
+.field-preview input[type="datetime-local"] {
+  width: 100%;
+  max-width: 220px;
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+}
+
 .field-preview__paragraph {
   margin: 0;
   padding: var(--space-1) 0;
@@ -692,7 +703,7 @@
 }
 
 .preview-page {
-  max-width: 720px;
+  max-width: 1040px;
 }
 
 .preview-banner {

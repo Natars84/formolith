@@ -1,6 +1,7 @@
 import {
   Type,
   Hash,
+  CalendarClock,
   CheckSquare,
   ListFilter,
   Pilcrow,
@@ -34,6 +35,15 @@ export const BLOCK_TYPES = [
     icon: Hash,
     defaultLabel: "Nouveau champ nombre",
     defaultConfig: { min: 0, max: 100, step: 1, show_slider: false },
+    collectsData: true,
+    showLabelAbove: true,
+  },
+  {
+    type: "datetime",
+    label: "Date / Heure",
+    icon: CalendarClock,
+    defaultLabel: "Nouveau champ date",
+    defaultConfig: { mode: "date" },
     collectsData: true,
     showLabelAbove: true,
   },

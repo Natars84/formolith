@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   getForm,
+  updateForm,
   listBlocks,
   createBlock,
   updateBlock,
@@ -22,6 +23,8 @@ export default function FormBuilder() {
   const [selectedBlockId, setSelectedBlockId] = useState(null);
   const [error, setError] = useState(null);
   const [saveStatus, setSaveStatus] = useState("idle");
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -104,6 +107,21 @@ export default function FormBuilder() {
     });
   }
 
+  function startEditingTitle() {
+    setTitleDraft(form.title);
+    setEditingTitle(true);
+  }
+
+  function commitTitle() {
+    setEditingTitle(false);
+    const trimmed = titleDraft.trim();
+    if (!trimmed || trimmed === form.title) return;
+    runSaving(async () => {
+      const updated = await updateForm(formId, { title: trimmed });
+      setForm(updated);
+    });
+  }
+
   if (error && !form) {
     return (
       <div className="page">
@@ -145,7 +163,31 @@ export default function FormBuilder() {
     <div className="builder">
       <div className="builder__topbar">
         <BackLink formId={formId} />
-        <h1 className="builder__title">{form.title}</h1>
+        {editingTitle ? (
+          <input
+            type="text"
+            className="builder__title-input"
+            value={titleDraft}
+            autoFocus
+            onChange={(e) => setTitleDraft(e.target.value)}
+            onBlur={commitTitle}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                e.target.blur();
+              }
+              if (e.key === "Escape") {
+                setEditingTitle(false);
+              }
+            }}
+          />
+        ) : (
+          <h1 className="builder__title">
+            <button type="button" className="builder__title-trigger" title="Renommer le formulaire" onClick={startEditingTitle}>
+              {form.title}
+            </button>
+          </h1>
+        )}
         <Link to={`/forms/${formId}/preview`} className="btn btn--ghost" target="_blank" rel="noreferrer">
           Aperçu
         </Link>

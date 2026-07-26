@@ -21,7 +21,7 @@ from app.schemas import (
     SubmissionRead,
 )
 
-app = FastAPI(title="FormBuilder API", version="0.1.0")
+app = FastAPI(title="FormBuilder API", version="0.2.0")
 
 #### Autorise le frontend (autre origine que l'API) à faire des appels depuis le navigateur
 #### TODO : restreindre à l'origine réelle du frontend une fois déployé, plutôt que "*"

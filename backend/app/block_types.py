@@ -1,5 +1,6 @@
 from enum import Enum
 from typing import Literal
+import re
 
 from pydantic import BaseModel
 
@@ -16,6 +17,12 @@ class NumberConfig(BaseModel):
     max: int
     step: int = 1
     show_slider: bool = False
+
+
+#### Config attendue pour un champ date/heure -> le mode détermine le type
+#### d'input HTML natif utilisé (date, heure, ou les deux)
+class DateTimeConfig(BaseModel):
+    mode: Literal["date", "time", "datetime"] = "date"
 
 
 #### Config attendue pour une case à cocher isolée (ex: "J'accepte les CGU")
@@ -59,6 +66,7 @@ class DividerConfig(BaseModel):
 class BlockType(str, Enum):
     text = "text"
     number = "number"
+    datetime = "datetime"
     checkbox = "checkbox"
     select = "select"
     paragraph = "paragraph"
@@ -82,6 +90,7 @@ NON_INPUT_BLOCK_TYPES = {
 BLOCK_CONFIG_SCHEMAS: dict[BlockType, type[BaseModel]] = {
     BlockType.text: TextConfig,
     BlockType.number: NumberConfig,
+    BlockType.datetime: DateTimeConfig,
     BlockType.checkbox: CheckboxConfig,
     BlockType.select: SelectConfig,
     BlockType.paragraph: ParagraphConfig,
@@ -105,6 +114,13 @@ class SubmissionValidationError(Exception):
         super().__init__(str(errors))
 
 
+#### Formats produits par les inputs HTML natifs date / time / datetime-local
+DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+TIME_RE = re.compile(r"^\d{2}:\d{2}(:\d{2})?$")
+DATETIME_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$")
+DATETIME_PATTERNS = {"date": DATE_RE, "time": TIME_RE, "datetime": DATETIME_RE}
+
+
 #### Valide la valeur d'une réponse pour un bloc précis, selon son type et sa config
 def validate_block_value(block_type: str, config: dict, value):
     block_type = BlockType(block_type)
@@ -122,6 +138,13 @@ def validate_block_value(block_type: str, config: dict, value):
             raise ValueError("doit être un nombre")
         if not (config["min"] <= value <= config["max"]):
             raise ValueError(f"doit être compris entre {config['min']} et {config['max']}")
+        return value
+
+    if block_type == BlockType.datetime:
+        mode = config.get("mode", "date")
+        pattern = DATETIME_PATTERNS[mode]
+        if not isinstance(value, str) or not pattern.match(value):
+            raise ValueError(f"format invalide pour le mode '{mode}'")
         return value
 
     if block_type == BlockType.checkbox:

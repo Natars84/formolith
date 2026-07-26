@@ -38,24 +38,42 @@ function ensureBlankLineAfterLists(text) {
 }
 
 //// Rendu d'un champ à partir de son type/config. Utilisé à deux endroits :
-//// dans le canevas du builder (essai libre, rien n'est retenu) et dans la
-//// page d'aperçu (aussi un essai libre, rien n'est jamais envoyé à l'API).
-export default function FieldRenderer({ block }) {
+////
+//// - Dans le canevas du builder (BlockCanvasItem) : aucun value/onChange
+////   fourni -> mode "essai libre", non contrôlé, rien n'est jamais retenu.
+//// - Dans l'aperçu (FormPreview) : value/onChange fournis -> mode contrôlé,
+////   la valeur remonte au parent pour permettre la validation des champs
+////   obligatoires avant "l'envoi" (jamais transmis à l'API pour autant).
+////
+//// La présence d'onChange (pas de value, qui peut légitimement être vide)
+//// sert de signal pour savoir si on est en mode contrôlé.
+export default function FieldRenderer({ block, value, onChange }) {
   const { type, config } = block;
-  //// Toujours déclaré, même si seul "number" s'en sert -> ordre des hooks stable
-  const [numberValue, setNumberValue] = useState(config.min ?? "");
+  const controlled = typeof onChange === "function";
+
+  //// Toujours déclaré, même si seul "number" non contrôlé s'en sert -> ordre des hooks stable
+  const [internalNumber, setInternalNumber] = useState(config.min ?? "");
 
   if (type === "text") {
-    return (
-      <input
-        type="text"
-        placeholder={config.max_length ? `Réponse en texte (max ${config.max_length} caractères)` : "Réponse en texte"}
-        maxLength={config.max_length || undefined}
-      />
-    );
+    const placeholder = config.max_length ? `Réponse en texte (max ${config.max_length} caractères)` : "Réponse en texte";
+    if (controlled) {
+      return (
+        <input
+          type="text"
+          value={value ?? ""}
+          placeholder={placeholder}
+          maxLength={config.max_length || undefined}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      );
+    }
+    return <input type="text" placeholder={placeholder} maxLength={config.max_length || undefined} />;
   }
 
   if (type === "number") {
+    const numberValue = controlled ? value ?? "" : internalNumber;
+    const setNumberValue = controlled ? onChange : setInternalNumber;
+
     return (
       <div className="field-preview__number">
         <input
@@ -89,22 +107,36 @@ export default function FieldRenderer({ block }) {
   if (type === "datetime") {
     //// Chaque mode correspond à un input HTML natif -> sélecteur date/heure fourni par le navigateur
     const htmlType = { date: "date", time: "time", datetime: "datetime-local" }[config.mode || "date"];
+    if (controlled) {
+      return <input type={htmlType} value={value ?? ""} onChange={(e) => onChange(e.target.value)} />;
+    }
     return <input type={htmlType} />;
   }
 
   if (type === "checkbox") {
+    const checkboxLabel = (
+      <span>
+        {block.label}
+        {block.required && (
+          <span className="block-item__required" aria-hidden="true">
+            {" "}
+            *
+          </span>
+        )}
+      </span>
+    );
+    if (controlled) {
+      return (
+        <label className="field-preview__checkbox">
+          <input type="checkbox" checked={!!value} onChange={(e) => onChange(e.target.checked)} />
+          {checkboxLabel}
+        </label>
+      );
+    }
     return (
       <label className="field-preview__checkbox">
         <input type="checkbox" />
-        <span>
-          {block.label}
-          {block.required && (
-            <span className="block-item__required" aria-hidden="true">
-              {" "}
-              *
-            </span>
-          )}
-        </span>
+        {checkboxLabel}
       </label>
     );
   }
@@ -115,12 +147,32 @@ export default function FieldRenderer({ block }) {
     if (config.display === "inline") {
       return (
         <div className="field-preview--inline">
-          {options.map((option) => (
-            <label key={option} className="field-preview__inline-option">
-              <input type={config.multiple ? "checkbox" : "radio"} name={`preview-${block.id}`} />
-              {option}
-            </label>
-          ))}
+          {options.map((option) => {
+            const inputType = config.multiple ? "checkbox" : "radio";
+            if (!controlled) {
+              return (
+                <label key={option} className="field-preview__inline-option">
+                  <input type={inputType} name={`preview-${block.id}`} />
+                  {option}
+                </label>
+              );
+            }
+            const isChecked = config.multiple ? (value || []).includes(option) : value === option;
+            function handleInlineChange() {
+              if (config.multiple) {
+                const current = value || [];
+                onChange(current.includes(option) ? current.filter((o) => o !== option) : [...current, option]);
+              } else {
+                onChange(option);
+              }
+            }
+            return (
+              <label key={option} className="field-preview__inline-option">
+                <input type={inputType} name={`preview-${block.id}`} checked={isChecked} onChange={handleInlineChange} />
+                {option}
+              </label>
+            );
+          })}
         </div>
       );
     }
@@ -129,6 +181,37 @@ export default function FieldRenderer({ block }) {
     //// plusieurs options -> peu intuitif pour un public non technophile.
     //// "Options côte à côte" reste le choix recommandé pour du multi-choix ;
     //// celui-ci n'en est pas moins rendu fonctionnel.
+    if (controlled) {
+      if (config.multiple) {
+        return (
+          <select
+            multiple
+            size={Math.min(options.length, 5)}
+            value={value || []}
+            onChange={(e) => onChange(Array.from(e.target.selectedOptions, (o) => o.value))}
+          >
+            {options.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        );
+      }
+      return (
+        <select value={value ?? ""} onChange={(e) => onChange(e.target.value)}>
+          <option value="" disabled>
+            Choisissez…
+          </option>
+          {options.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+      );
+    }
+
     return (
       <select multiple={config.multiple} size={config.multiple ? Math.min(options.length, 5) : undefined} defaultValue={config.multiple ? [] : ""}>
         {!config.multiple && (

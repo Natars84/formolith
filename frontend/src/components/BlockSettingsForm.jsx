@@ -199,6 +199,19 @@ function TypeSpecificFields({ type, config, onSave }) {
     );
   }
 
+  if (type === "datetime") {
+    return (
+      <label className="field-group">
+        <span className="field-group__label">Ce qu'on demande</span>
+        <select value={config.mode || "date"} onChange={(e) => onSave({ ...config, mode: e.target.value })}>
+          <option value="date">Date</option>
+          <option value="time">Heure</option>
+          <option value="datetime">Date et heure</option>
+        </select>
+      </label>
+    );
+  }
+
   if (type === "number") {
     return (
       <>

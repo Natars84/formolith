@@ -36,6 +36,8 @@ class Block(Base):
     type: Mapped[str] = mapped_column(String, nullable=False)
     label: Mapped[str] = mapped_column(String, nullable=False)
     required: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    #### Largeur d'affichage : "full" / "half" / "third" -> permet de placer des blocs côte à côte
+    width: Mapped[str] = mapped_column(String, nullable=False, default="full")
 
     #### Paramètres spécifiques au type (min/max d'un slider, options d'un select, ...)
     config: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)

@@ -814,3 +814,22 @@
   color: var(--color-ink-faint);
   margin-top: var(--space-1);
 }
+
+/* Validation des champs obligatoires dans l'aperçu */
+.block-item__body--invalid {
+  border-color: var(--color-warn) !important;
+}
+.field-preview__error {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-xs);
+  color: var(--color-warn);
+}
+.preview-form__error-summary {
+  background: var(--color-warn-soft);
+  color: var(--color-warn);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  margin-bottom: var(--space-3);
+}

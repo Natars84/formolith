@@ -6,8 +6,16 @@ import FieldRenderer from "../components/FieldRenderer";
 
 const WIDTH_CLASS = { full: "block-item--full", half: "block-item--half", third: "block-item--third" };
 
-//// Rendu du formulaire tel qu'un répondant le verrait, mais rien n'est jamais
-//// envoyé à l'API -> uniquement pour vérifier le rendu avant publication.
+//// Une valeur est-elle "vide" pour ce type de bloc précis ? (une case décochée,
+//// un select multiple sans rien choisi, etc. n'ont pas la même notion de "vide")
+function isEmptyValue(block, value) {
+  if (block.type === "checkbox") return value !== true;
+  if (block.type === "select" && block.config.multiple) return !value || value.length === 0;
+  return value === undefined || value === null || value === "";
+}
+
+//// Rendu du formulaire tel qu'un répondant le verrait, y compris la validation
+//// des champs obligatoires -> seul l'envoi réel à l'API est neutralisé.
 export default function FormPreview() {
   const { formId } = useParams();
 
@@ -15,6 +23,8 @@ export default function FormPreview() {
   const [blocks, setBlocks] = useState(null);
   const [error, setError] = useState(null);
   const [submitted, setSubmitted] = useState(false);
+  const [values, setValues] = useState({});
+  const [invalidBlockIds, setInvalidBlockIds] = useState(new Set());
 
   useEffect(() => {
     let cancelled = false;
@@ -33,6 +43,36 @@ export default function FormPreview() {
       cancelled = true;
     };
   }, [formId]);
+
+  function updateValue(blockId, value) {
+    setValues((prev) => ({ ...prev, [blockId]: value }));
+    setInvalidBlockIds((prev) => {
+      if (!prev.has(blockId)) return prev;
+      const next = new Set(prev);
+      next.delete(blockId);
+      return next;
+    });
+  }
+
+  function handleSubmit(e) {
+    e.preventDefault();
+
+    const missing = new Set();
+    for (const block of blocks) {
+      if (!getBlockTypeMeta(block.type)?.collectsData) continue;
+      if (block.required && isEmptyValue(block, values[block.id])) {
+        missing.add(block.id);
+      }
+    }
+
+    if (missing.size > 0) {
+      setInvalidBlockIds(missing);
+      return;
+    }
+
+    setInvalidBlockIds(new Set());
+    setSubmitted(true);
+  }
 
   if (error) {
     return (
@@ -70,33 +110,38 @@ export default function FormPreview() {
         <div className="preview-sheet">
           <h1 className="page-title">{form.title}</h1>
 
-          <form
-            className="preview-form"
-            onSubmit={(e) => {
-              e.preventDefault();
-              setSubmitted(true);
-            }}
-          >
-            {blocks.map((block) => (
-              <div key={block.id} className={`block-item ${WIDTH_CLASS[block.width] || WIDTH_CLASS.full}`}>
-                <div className={`block-item__body block-item__body--static ${!getBlockTypeMeta(block.type)?.showLabelAbove ? "block-item__body--compact" : ""}`}>
-                  {getBlockTypeMeta(block.type)?.showLabelAbove && (
-                    <span className="block-item__label">
-                      {block.label}
-                      {block.required && (
-                        <span className="block-item__required" aria-hidden="true">
-                          {" "}
-                          *
-                        </span>
-                      )}
-                    </span>
-                  )}
-                  <div className="field-preview">
-                    <FieldRenderer block={block} />
+          {invalidBlockIds.size > 0 && (
+            <p className="preview-form__error-summary">Merci de compléter les champs obligatoires (en rouge ci-dessous).</p>
+          )}
+
+          <form className="preview-form" onSubmit={handleSubmit}>
+            {blocks.map((block) => {
+              const meta = getBlockTypeMeta(block.type);
+              const invalid = invalidBlockIds.has(block.id);
+              return (
+                <div key={block.id} className={`block-item ${WIDTH_CLASS[block.width] || WIDTH_CLASS.full}`}>
+                  <div
+                    className={`block-item__body block-item__body--static ${!meta?.showLabelAbove ? "block-item__body--compact" : ""} ${invalid ? "block-item__body--invalid" : ""}`}
+                  >
+                    {meta?.showLabelAbove && (
+                      <span className="block-item__label">
+                        {block.label}
+                        {block.required && (
+                          <span className="block-item__required" aria-hidden="true">
+                            {" "}
+                            *
+                          </span>
+                        )}
+                      </span>
+                    )}
+                    <div className="field-preview">
+                      <FieldRenderer block={block} value={values[block.id]} onChange={(v) => updateValue(block.id, v)} />
+                    </div>
+                    {invalid && <p className="field-preview__error">Réponse obligatoire.</p>}
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
 
             {blocks.length > 0 && !submitted && (
               <button type="submit" className="btn btn--primary preview-form__submit">

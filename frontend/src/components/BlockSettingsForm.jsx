@@ -199,38 +199,48 @@ function TypeSpecificFields({ type, config, onSave }) {
     );
   }
 
-  if (type === "slider") {
+  if (type === "number") {
     return (
-      <div className="field-group-row">
-        <label className="field-group">
-          <span className="field-group__label">Minimum</span>
+      <>
+        <div className="field-group-row">
+          <label className="field-group">
+            <span className="field-group__label">Minimum</span>
+            <input
+              type="number"
+              defaultValue={config.min}
+              onBlur={(e) => onSave({ ...config, min: Number(e.target.value) })}
+              onKeyDown={blurOnEnter}
+            />
+          </label>
+          <label className="field-group">
+            <span className="field-group__label">Maximum</span>
+            <input
+              type="number"
+              defaultValue={config.max}
+              onBlur={(e) => onSave({ ...config, max: Number(e.target.value) })}
+              onKeyDown={blurOnEnter}
+            />
+          </label>
+          <label className="field-group">
+            <span className="field-group__label">Pas</span>
+            <input
+              type="number"
+              min={1}
+              defaultValue={config.step}
+              onBlur={(e) => onSave({ ...config, step: Number(e.target.value) })}
+              onKeyDown={blurOnEnter}
+            />
+          </label>
+        </div>
+        <label className="field-group field-group--inline">
           <input
-            type="number"
-            defaultValue={config.min}
-            onBlur={(e) => onSave({ ...config, min: Number(e.target.value) })}
-            onKeyDown={blurOnEnter}
+            type="checkbox"
+            checked={config.show_slider || false}
+            onChange={(e) => onSave({ ...config, show_slider: e.target.checked })}
           />
+          <span>Afficher aussi un curseur</span>
         </label>
-        <label className="field-group">
-          <span className="field-group__label">Maximum</span>
-          <input
-            type="number"
-            defaultValue={config.max}
-            onBlur={(e) => onSave({ ...config, max: Number(e.target.value) })}
-            onKeyDown={blurOnEnter}
-          />
-        </label>
-        <label className="field-group">
-          <span className="field-group__label">Pas</span>
-          <input
-            type="number"
-            min={1}
-            defaultValue={config.step}
-            onBlur={(e) => onSave({ ...config, step: Number(e.target.value) })}
-            onKeyDown={blurOnEnter}
-          />
-        </label>
-      </div>
+      </>
     );
   }
 
@@ -360,8 +370,75 @@ function MarkdownEditor({ config, onSave }) {
     onSave({ ...config, content: newValue });
   }
 
+  //// Regarde la ligne précédente : si elle commence par "N. ", reprend N+1
+  //// plutôt que de toujours insérer "1." (ce qui rendait l'éditeur illisible,
+  //// même si le rendu final, lui, numérotait correctement).
+  function prefixOrderedListLine() {
+    const el = textareaRef.current;
+    if (!el) return;
+    const start = el.selectionStart;
+    const value = el.value;
+    const lineStart = value.lastIndexOf("\n", start - 1) + 1;
+    const previousLineEnd = lineStart > 0 ? lineStart - 1 : -1;
+    const previousLineStart = previousLineEnd >= 0 ? value.lastIndexOf("\n", previousLineEnd - 1) + 1 : 0;
+    const previousLine = previousLineEnd >= 0 ? value.slice(previousLineStart, previousLineEnd) : "";
+    const match = previousLine.match(/^(\d+)\.\s/);
+    const nextNumber = match ? Number(match[1]) + 1 : 1;
+    prefixLine(`${nextNumber}. `);
+  }
+
   //// Empêche le clic sur un bouton d'outil de faire perdre le focus (et donc la sélection) du textarea
   const keepFocus = (e) => e.preventDefault();
+
+  //// Entrée sur une ligne de liste -> continue automatiquement la liste (même
+  //// puce, ou numéro suivant). Une ligne de liste vide + Entrée en sort plutôt
+  //// que d'ajouter une puce vide de plus. Ctrl/Cmd+Entrée reste réservé à
+  //// l'enregistrement, et n'a jamais ce comportement de continuation.
+  function handleKeyDown(e) {
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      e.target.blur();
+      return;
+    }
+
+    if (e.key !== "Enter" || e.shiftKey) return;
+
+    const el = e.target;
+    const value = el.value;
+    const start = el.selectionStart;
+    const lineStart = value.lastIndexOf("\n", start - 1) + 1;
+    const currentLine = value.slice(lineStart, start);
+
+    const bulletMatch = currentLine.match(/^(-\s)(.*)$/);
+    const orderedMatch = currentLine.match(/^(\d+)\.\s(.*)$/);
+    if (!bulletMatch && !orderedMatch) return;
+
+    e.preventDefault();
+    const isEmpty = (bulletMatch ? bulletMatch[2] : orderedMatch[2]).trim() === "";
+
+    if (isEmpty) {
+      //// Ligne de liste vide -> Entrée en sort. Une seule ligne ne suffit pas :
+      //// en Markdown, un texte qui suit une liste sans ligne vide entre les deux
+      //// est considéré comme la suite du dernier point (comportement standard,
+      //// pas un bug de rendu) -> on insère la vraie ligne vide nécessaire.
+      const newValue = value.slice(0, lineStart) + "\n" + value.slice(start);
+      el.value = newValue;
+      const cursor = lineStart + 1;
+      el.focus();
+      el.setSelectionRange(cursor, cursor);
+      onSave({ ...config, content: newValue });
+      return;
+    }
+
+    const nextPrefix = bulletMatch ? "- " : `${Number(orderedMatch[1]) + 1}. `;
+    const insertion = `\n${nextPrefix}`;
+    const newValue = value.slice(0, start) + insertion + value.slice(start);
+    el.value = newValue;
+    const cursor = start + insertion.length;
+    el.focus();
+    el.setSelectionRange(cursor, cursor);
+    onSave({ ...config, content: newValue });
+  }
 
   return (
     <label className="field-group">
@@ -383,7 +460,7 @@ function MarkdownEditor({ config, onSave }) {
           <List size={14} aria-hidden="true" />
           <span className="sr-only">Liste à puces</span>
         </button>
-        <button type="button" onMouseDown={keepFocus} onClick={() => prefixLine("1. ")} title="Liste numérotée">
+        <button type="button" onMouseDown={keepFocus} onClick={prefixOrderedListLine} title="Liste numérotée">
           <ListOrdered size={14} aria-hidden="true" />
           <span className="sr-only">Liste numérotée</span>
         </button>
@@ -407,7 +484,7 @@ function MarkdownEditor({ config, onSave }) {
         className="field-group__markdown-input"
         defaultValue={config.content}
         onBlur={(e) => onSave({ ...config, content: e.target.value })}
-        onKeyDown={blurOnCtrlEnter}
+        onKeyDown={handleKeyDown}
       />
       <span className="field-group__hint">Ctrl+Entrée (ou Cmd+Entrée) pour enregistrer</span>
     </label>

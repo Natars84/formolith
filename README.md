@@ -2,63 +2,62 @@
 
 Un outil self-hosted de création de formulaires par blocs : gestion des réponses, notifications en direct (mail, webhooks, MQTT), liens à expiration.
 
-Statut : 🚧 en construction, bloc par bloc.
+**Version : 0.2.0** — développement actif. Tant que la version reste en `0.x`, l'API et le modèle de données peuvent encore changer sans garantie de compatibilité ([SemVer](https://semver.org/lang/fr/)).
 
-## Avancement
+## Fonctionnalités
 
-- **Bloc 1** — Squelette : API FastAPI minimale, endpoint `/health` vérifiant la connexion à Postgres, Alembic initialisé. ✅
-- **Bloc 2** — Modèle de données : tables `forms`, `blocks`, `submissions` + migration Alembic + endpoints `POST /forms` et `GET /forms/{id}` de vérification. ✅
-- **Bloc 3** — Catalogue des types de blocs (`block_types.py`, validation du `config` selon le `type`) + CRUD complet des blocs (`POST`/`GET`/`PATCH`/`DELETE /forms/{id}/blocks`). Type immuable après création. ✅
-- **Bloc 4** — Réorganisation des blocs (`PATCH /forms/{id}/blocks/reorder`) : liste complète exigée, tout ou rien. ✅
-- **Bloc 5** — CRUD des réponses (`submissions`), avec validation stricte de chaque valeur contre le bloc réel qu'elle remplit (type, config, champs requis) + `DELETE /forms/{id}` + script de tests d'intégration (`backend/tests/test_api.py`). ✅
-- **Bloc 6** — `GET /forms` : liste tous les formulaires existants. ✅
-- **Bloc 7** — `PATCH /forms/{id}` (titre/statut) + un formulaire non publié refuse toute réponse (403). ✅
-- **Bloc 8** — Duplication d'un formulaire (`POST /forms/{id}/duplicate`) : copie ses blocs, jamais ses réponses, repart toujours en `draft`. ✅
-- **Bloc 9** — À venir (frontend React + Vite).
+### Formulaires
+- Créer, lister, renommer, supprimer
+- Statuts : brouillon / publié / archivé — un formulaire non publié refuse toute réponse
+- Dupliquer (la copie repart toujours en brouillon) — modifier un formulaire déjà publié se fait par duplication, pas de version interne
 
-## Modèle de données
+### Blocs (10 types)
+- **Champs de formulaire** : texte, nombre (avec curseur optionnel), date/heure (date, heure, ou les deux), case à cocher, choix dans une liste (déroulante ou côte à côte, simple ou multiple)
+- **Contenu** : titre (H1 à H6), paragraphe, texte enrichi Markdown (avec barre d'outils), espaceur, ligne séparatrice
+- Réorganisables, largeur réglable (pleine largeur / moitié / tiers), validation stricte selon le type
 
-Trois tables, sans versionning de formulaire (une modification après publication se fait par duplication, pas par version interne) :
+### Réponses
+- Chaque valeur est validée contre le bloc réel qu'elle remplit (type, contraintes, champs obligatoires)
 
-- `forms` — identité du formulaire (titre, statut, dates)
-- `blocks` — un élément de formulaire par ligne (position, type, label, obligatoire en colonnes classiques ; paramètres spécifiques au type en JSONB), rattaché à `forms`
-- `submissions` — une réponse par ligne, rattachée directement à `forms`
+### Interface web
+- Liste des formulaires (cartes ou tableau)
+- Page de gestion par formulaire (réponses, publier, dupliquer, supprimer)
+- Builder par blocs : panneau de réglages contextuel, essai des champs en direct, auto-enregistrement
+- Aperçu du formulaire (avec validation des champs obligatoires), sans jamais rien envoyer à l'API
 
 ## Démarrage
 
 ```bash
 cp .env.example .env
-docker compose up --build -d
-docker compose exec api alembic upgrade head
+make up
 ```
 
-Vérifier : [http://localhost:8000/health](http://localhost:8000/health)
+API sur [http://localhost:8000](http://localhost:8000), interface sur [http://localhost:8080](http://localhost:8080).
 
-Réponse attendue :
-```json
-{"status": "ok", "database": "connected"}
-```
+Pas de `make` sous la main ? `docker compose up --build -d` fonctionne aussi — la migration de base de données s'applique automatiquement au démarrage du conteneur, dans les deux cas.
 
-Créer un formulaire :
+Lancer les tests d'intégration :
 ```bash
-curl -X POST http://localhost:8000/forms \
-  -H "Content-Type: application/json" \
-  -d '{"title":"Mon premier formulaire"}'
+make test
 ```
 
-Lancer les tests d'intégration (crée et nettoie ses propres données de test) :
-```bash
-python3 backend/tests/test_api.py
-```
+## Modèle de données
+
+Trois tables, sans versionning de formulaire :
+
+- `forms` — identité du formulaire (titre, statut, dates)
+- `blocks` — un élément de formulaire par ligne (position, type, label, obligatoire, largeur en colonnes classiques ; paramètres spécifiques au type en JSONB), rattaché à `forms`
+- `submissions` — une réponse par ligne, rattachée directement à `forms`
 
 ## Stack
 
-- **Backend** : FastAPI (Python)
-- **Base de données** : PostgreSQL
-- **Migrations** : Alembic
-- **Frontend** : React + Vite *(à venir)*
-- **Orchestration** : Docker Compose — ports exposés directement, aucun reverse proxy requis
+- **Backend** : FastAPI (Python), PostgreSQL, Alembic
+- **Frontend** : React + Vite, lucide-react (icônes), marked + DOMPurify (rendu Markdown assaini)
+- **Orchestration** : Docker Compose (ports exposés directement, aucun reverse proxy requis), Makefile pour les commandes courantes
 
-## Philosophie
+## À venir
 
-Ce projet est pensé pour tourner sur n'importe quelle machine avec juste Docker installé : pas de dépendance à un reverse proxy ou une infra spécifique.
+- Pièces jointes et images (nécessite une brique de stockage de fichiers)
+- Liens publics de partage (accès au formulaire sans passer par l'interface de gestion)
+- Comptes utilisateurs et droits granulaires
+- Export des réponses (CSV/JSON), webhooks, notifications par mail

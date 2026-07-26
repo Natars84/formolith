@@ -32,6 +32,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 #### Vérifie que l'API et la base de données sont opérationnelles
 @app.get("/health")
 def health_check():
@@ -143,6 +144,7 @@ def create_block(form_id: uuid.UUID, payload: BlockCreate, db: Session = Depends
         type=payload.type.value,
         label=payload.label,
         required=payload.required,
+        width=payload.width,
         config=validated_config,
     )
     db.add(block)
@@ -200,6 +202,8 @@ def update_block(form_id: uuid.UUID, block_id: uuid.UUID, payload: BlockUpdate, 
         block.label = payload.label
     if payload.required is not None:
         block.required = payload.required
+    if payload.width is not None:
+        block.width = payload.width
     if payload.config is not None:
         try:
             block.config = validate_block_config(BlockType(block.type), payload.config)

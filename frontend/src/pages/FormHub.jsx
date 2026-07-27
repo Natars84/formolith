@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
-import { Trash2 } from "lucide-react";
+import { Trash2, Copy, Check, RefreshCw } from "lucide-react";
 import {
   getForm,
   listBlocks,
@@ -9,27 +9,44 @@ import {
   deleteForm,
   duplicateForm,
   deleteSubmission,
+  regeneratePublicToken,
 } from "../lib/api";
+import { useBlockTypes } from "../context/BlockTypesContext";
 import StatusBadge from "../components/StatusBadge";
+
+//// Rendu texte d'une réponse selon le type de bloc -> "—" si laissé vide (jamais requis)
+function formatValue(block, value) {
+  if (value === undefined || value === null || value === "") return "—";
+  if (block.type === "checkbox") return value ? "Oui" : "Non";
+  if (Array.isArray(value)) return value.join(", ");
+  return String(value);
+}
 
 export default function FormHub() {
   const { formId } = useParams();
   const navigate = useNavigate();
+  const { types: blockTypes } = useBlockTypes();
 
   const [form, setForm] = useState(null);
-  const [blockCount, setBlockCount] = useState(null);
+  const [blocks, setBlocks] = useState(null);
   const [submissions, setSubmissions] = useState(null);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [copyStatus, setCopyStatus] = useState("idle"); // idle | copied | failed
+  const linkInputRef = useRef(null);
+
+  function getMeta(type) {
+    return blockTypes?.find((entry) => entry.type === type) || null;
+  }
 
   useEffect(() => {
     let cancelled = false;
 
     Promise.all([getForm(formId), listBlocks(formId), listSubmissions(formId)])
-      .then(([formData, blocks, subs]) => {
+      .then(([formData, blockData, subs]) => {
         if (cancelled) return;
         setForm(formData);
-        setBlockCount(blocks.length);
+        setBlocks(blockData);
         setSubmissions(subs);
       })
       .catch((err) => {
@@ -70,7 +87,14 @@ export default function FormHub() {
   }
 
   async function handleDelete() {
-    if (!window.confirm(`Supprimer définitivement « ${form.title} » et toutes ses réponses ?`)) {
+    //// Message adapté selon qu'il y a des réponses à perdre ou non -> pas la même
+    //// gravité, pas le même besoin d'attirer l'attention sur ce qui disparaît.
+    const confirmMessage =
+      submissions.length > 0
+        ? `Supprimer définitivement « ${form.title} » ? Cette action supprimera aussi ses ${submissions.length} réponse${submissions.length === 1 ? "" : "s"}, de façon irréversible.`
+        : `Supprimer définitivement « ${form.title} » ?`;
+
+    if (!window.confirm(confirmMessage)) {
       return;
     }
     setBusy(true);
@@ -95,6 +119,48 @@ export default function FormHub() {
     }
   }
 
+  function publicLinkFor(token) {
+    return `${window.location.origin}/f/${token}`;
+  }
+
+  //// Une erreur ici (copie) ne doit jamais déclencher l'écran d'erreur pleine page,
+  //// réservé à un échec de CHARGEMENT du formulaire -> état dédié, avec un repli
+  //// (sélection manuelle) si l'API presse-papier est indisponible (contexte non HTTPS).
+  async function handleCopyLink() {
+    const link = publicLinkFor(form.public_token);
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      try {
+        await navigator.clipboard.writeText(link);
+        setCopyStatus("copied");
+        setTimeout(() => setCopyStatus("idle"), 2000);
+        return;
+      } catch {
+        // on retombe sur le repli ci-dessous
+      }
+    }
+
+    linkInputRef.current?.focus();
+    linkInputRef.current?.select();
+    setCopyStatus("failed");
+    setTimeout(() => setCopyStatus("idle"), 4000);
+  }
+
+  async function handleRegenerateLink() {
+    if (!window.confirm("Générer un nouveau lien ? L'ancien lien cessera immédiatement de fonctionner.")) {
+      return;
+    }
+    setBusy(true);
+    try {
+      const updated = await regeneratePublicToken(formId);
+      setForm(updated);
+    } catch (err) {
+      setError(err);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (error) {
     return (
       <div className="page">
@@ -106,7 +172,7 @@ export default function FormHub() {
     );
   }
 
-  if (!form) {
+  if (!form || !blocks) {
     return (
       <div className="page">
         <BackLink />
@@ -117,6 +183,8 @@ export default function FormHub() {
     );
   }
 
+  const dataBlocks = blocks.filter((block) => getMeta(block.type)?.collectsData);
+
   return (
     <div className="page">
       <BackLink />
@@ -126,7 +194,7 @@ export default function FormHub() {
           <h1 className="page-title">{form.title}</h1>
           <div className="hub-meta">
             <StatusBadge status={form.status} />
-            <span>{blockCount} bloc{blockCount === 1 ? "" : "s"}</span>
+            <span>{blocks.length} bloc{blocks.length === 1 ? "" : "s"}</span>
             <span>{submissions.length} réponse{submissions.length === 1 ? "" : "s"}</span>
           </div>
         </div>
@@ -153,6 +221,38 @@ export default function FormHub() {
         </button>
       </div>
 
+      {form.status === "published" ? (
+        <div className="public-link">
+          <span className="field-group__label">Lien public</span>
+          <div className="public-link__row">
+            <input
+              ref={linkInputRef}
+              type="text"
+              readOnly
+              value={publicLinkFor(form.public_token)}
+              onFocus={(e) => e.target.select()}
+            />
+            <button type="button" className="btn btn--ghost" onClick={handleCopyLink} title="Copier le lien">
+              {copyStatus === "copied" ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}
+              <span className="sr-only">Copier le lien</span>
+            </button>
+            <button type="button" className="btn btn--ghost" onClick={handleRegenerateLink} disabled={busy} title="Générer un nouveau lien">
+              <RefreshCw size={16} aria-hidden="true" />
+              <span className="sr-only">Générer un nouveau lien</span>
+            </button>
+          </div>
+          {copyStatus === "copied" && <span className="public-link__feedback public-link__feedback--ok">Lien copié !</span>}
+          {copyStatus === "failed" && (
+            <span className="public-link__feedback public-link__feedback--warn">
+              Copie automatique indisponible (nécessite HTTPS) — champ sélectionné, utilisez Ctrl+C (ou Cmd+C).
+            </span>
+          )}
+          {copyStatus === "idle" && <span className="field-group__hint">Régénérer le lien invalide immédiatement l'ancien.</span>}
+        </div>
+      ) : (
+        <p className="public-link__hint-inactive">Le lien public sera disponible une fois le formulaire publié.</p>
+      )}
+
       <h2 className="section-title">Réponses</h2>
 
       {submissions.length === 0 && (
@@ -162,32 +262,40 @@ export default function FormHub() {
       )}
 
       {submissions.length > 0 && (
-        <table className="forms-table">
-          <thead>
-            <tr>
-              <th>Reçue le</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {submissions.map((submission) => (
-              <tr key={submission.id}>
-                <td>{new Date(submission.submitted_at).toLocaleString("fr-FR")}</td>
-                <td>
-                  <button
-                    type="button"
-                    className="btn btn--ghost btn--icon"
-                    title="Supprimer cette réponse"
-                    onClick={() => handleDeleteSubmission(submission.id)}
-                  >
-                    <Trash2 size={16} aria-hidden="true" />
-                    <span className="sr-only">Supprimer cette réponse</span>
-                  </button>
-                </td>
+        <div className="submissions-table-wrapper">
+          <table className="forms-table submissions-table">
+            <thead>
+              <tr>
+                <th>Reçue le</th>
+                {dataBlocks.map((block) => (
+                  <th key={block.id}>{block.label}</th>
+                ))}
+                <th></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {submissions.map((submission) => (
+                <tr key={submission.id}>
+                  <td>{new Date(submission.submitted_at).toLocaleString("fr-FR")}</td>
+                  {dataBlocks.map((block) => (
+                    <td key={block.id}>{formatValue(block, submission.data[block.id])}</td>
+                  ))}
+                  <td>
+                    <button
+                      type="button"
+                      className="btn btn--ghost btn--icon"
+                      title="Supprimer cette réponse"
+                      onClick={() => handleDeleteSubmission(submission.id)}
+                    >
+                      <Trash2 size={16} aria-hidden="true" />
+                      <span className="sr-only">Supprimer cette réponse</span>
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

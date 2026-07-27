@@ -101,6 +101,33 @@ BLOCK_CONFIG_SCHEMAS: dict[BlockType, type[BaseModel]] = {
 }
 
 
+#### Libellé lisible par type -> exposé via /block-types, pour que le frontend
+#### n'ait plus à maintenir sa propre liste de libellés en parallèle
+BLOCK_TYPE_LABELS: dict[BlockType, str] = {
+    BlockType.text: "Champ texte",
+    BlockType.number: "Nombres",
+    BlockType.datetime: "Date / Heure",
+    BlockType.checkbox: "Case à cocher",
+    BlockType.select: "Choix dans une liste",
+    BlockType.heading: "Titre de section",
+    BlockType.paragraph: "Zone de texte",
+    BlockType.markdown: "Texte enrichi (Markdown)",
+    BlockType.spacer: "Espaceur",
+    BlockType.divider: "Ligne séparatrice",
+}
+
+
+#### Description complète d'un type de bloc, telle qu'exposée par /block-types
+def describe_block_type(block_type: BlockType) -> dict:
+    schema = BLOCK_CONFIG_SCHEMAS[block_type]
+    return {
+        "type": block_type.value,
+        "display_name": BLOCK_TYPE_LABELS.get(block_type, block_type.value),
+        "collects_data": block_type not in NON_INPUT_BLOCK_TYPES,
+        "config_schema": schema.model_json_schema(),
+    }
+
+
 #### Valide un config brut selon le type de bloc, renvoie un dict prêt à stocker en JSONB
 def validate_block_config(block_type: BlockType, config: dict) -> dict:
     schema = BLOCK_CONFIG_SCHEMAS[block_type]

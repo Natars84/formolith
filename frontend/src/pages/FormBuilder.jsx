@@ -124,6 +124,18 @@ export default function FormBuilder() {
     });
   }
 
+  //// Une fois publié, le garde-fou plus bas (form.status !== "draft") prend le relais
+  //// et affiche son propre message -> rien d'autre à gérer ici après la mise à jour.
+  function handlePublish() {
+    if (!window.confirm(`Publier « ${form.title} » ? Il deviendra accessible et pourra recevoir des réponses.`)) {
+      return;
+    }
+    runSaving(async () => {
+      const updated = await updateForm(formId, { status: "published" });
+      setForm(updated);
+    });
+  }
+
   if (error && !form) {
     return (
       <div className="page">
@@ -190,6 +202,9 @@ export default function FormBuilder() {
             </button>
           </h1>
         )}
+        <button type="button" className="btn btn--ghost" onClick={handlePublish} disabled={saveStatus === "saving"}>
+          Publier
+        </button>
         <Link to={`/forms/${formId}/preview`} className="btn btn--ghost" target="_blank" rel="noreferrer">
           Aperçu
         </Link>

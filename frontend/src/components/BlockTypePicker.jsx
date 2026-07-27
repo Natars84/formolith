@@ -1,19 +1,38 @@
-import { BLOCK_TYPES } from "../lib/blockTypes";
-
-const FORM_FIELDS = BLOCK_TYPES.filter((t) => t.collectsData);
-const CONTENT_BLOCKS = BLOCK_TYPES.filter((t) => !t.collectsData);
+import { useBlockTypes } from "../context/BlockTypesContext";
 
 export default function BlockTypePicker({ onAdd, disabled }) {
+  const { types, error } = useBlockTypes();
+
+  if (error) {
+    return (
+      <div className="side-panel">
+        <p className="state-panel__title">Catalogue indisponible</p>
+        <p className="side-panel__hint">Impossible de charger la liste des types de blocs.</p>
+      </div>
+    );
+  }
+
+  if (!types) {
+    return (
+      <div className="side-panel">
+        <p className="side-panel__hint">Chargement…</p>
+      </div>
+    );
+  }
+
+  const formFields = types.filter((t) => t.collectsData);
+  const contentBlocks = types.filter((t) => !t.collectsData);
+
   return (
     <div className="side-panel">
       <h2 className="side-panel__title">Ajouter un champ</h2>
       <p className="side-panel__hint">Cliquez sur un type pour l'ajouter en fin de formulaire.</p>
 
       <h3 className="side-panel__group-title">Champs de formulaire</h3>
-      <TypeGrid types={FORM_FIELDS} onAdd={onAdd} disabled={disabled} />
+      <TypeGrid types={formFields} onAdd={onAdd} disabled={disabled} />
 
       <h3 className="side-panel__group-title">Contenu</h3>
-      <TypeGrid types={CONTENT_BLOCKS} onAdd={onAdd} disabled={disabled} />
+      <TypeGrid types={contentBlocks} onAdd={onAdd} disabled={disabled} />
     </div>
   );
 }
@@ -21,10 +40,11 @@ export default function BlockTypePicker({ onAdd, disabled }) {
 function TypeGrid({ types, onAdd, disabled }) {
   return (
     <div className="type-grid">
-      {types.map(({ type, label, icon: Icon }) => (
+      {types.map(({ type, displayName, icon: Icon }) => (
         <button key={type} type="button" className="type-card" disabled={disabled} onClick={() => onAdd(type)}>
-          <Icon size={28} aria-hidden="true" />
-          <span>{label}</span>
+          {/* Aucune icône connue côté frontend pour ce type -> libellé texte, jamais invisible */}
+          {Icon ? <Icon size={28} aria-hidden="true" /> : <span className="type-card__fallback-icon" aria-hidden="true">{displayName.slice(0, 2)}</span>}
+          <span>{displayName}</span>
         </button>
       ))}
     </div>

@@ -1,117 +1,47 @@
-import {
-  Type,
-  Hash,
-  CalendarClock,
-  CheckSquare,
-  ListFilter,
-  Pilcrow,
-  FileCode2,
-  Heading,
-  MoveVertical,
-  Minus,
-} from "lucide-react";
+import { Type, Hash, CalendarClock, CheckSquare, ListFilter, Pilcrow, FileCode2, Heading, MoveVertical, Minus } from "lucide-react";
 
-//// Miroir léger de backend/app/block_types.py, côté UI : un type par entrée,
-//// avec une config par défaut qui passe la validation dès la création
-//// (un slider/select ne peut pas être créé avec une config vide côté API).
-////
-//// showLabelAbove : le libellé générique du bloc s'affiche-t-il en légende
-//// au-dessus du champ (comportement par défaut) ? false pour la case à cocher
-//// (son texte s'affiche à côté d'elle, pas au-dessus) et pour les blocs de
-//// contenu (qui n'ont pas de "libellé" au sens propre).
-export const BLOCK_TYPES = [
-  {
-    type: "text",
-    label: "Champ texte",
-    icon: Type,
-    defaultLabel: "Nouveau champ texte",
-    defaultConfig: {},
-    collectsData: true,
-    showLabelAbove: true,
-  },
-  {
-    type: "number",
-    label: "Nombres",
-    icon: Hash,
-    defaultLabel: "Nouveau champ nombre",
-    defaultConfig: { min: 0, max: 100, step: 1, show_slider: false },
-    collectsData: true,
-    showLabelAbove: true,
-  },
-  {
-    type: "datetime",
-    label: "Date / Heure",
-    icon: CalendarClock,
-    defaultLabel: "Nouveau champ date",
-    defaultConfig: { mode: "date" },
-    collectsData: true,
-    showLabelAbove: true,
-  },
-  {
-    type: "checkbox",
-    label: "Case à cocher",
-    icon: CheckSquare,
-    defaultLabel: "Nouvelle case à cocher",
-    defaultConfig: {},
-    collectsData: true,
-    showLabelAbove: false,
-  },
-  {
-    type: "select",
-    label: "Choix dans une liste",
-    icon: ListFilter,
-    defaultLabel: "Nouveau choix",
-    defaultConfig: { options: ["Option 1", "Option 2"], multiple: false, display: "dropdown" },
-    collectsData: true,
-    showLabelAbove: true,
-  },
-  {
-    type: "heading",
-    label: "Titre de section",
-    icon: Heading,
-    defaultLabel: "",
-    defaultConfig: { content: "Titre de section", level: 2 },
-    collectsData: false,
-    showLabelAbove: false,
-  },
-  {
-    type: "paragraph",
-    label: "Zone de texte",
-    icon: Pilcrow,
-    defaultLabel: "",
-    defaultConfig: { content: "Votre texte ici." },
-    collectsData: false,
-    showLabelAbove: false,
-  },
-  {
-    type: "markdown",
-    label: "Texte enrichi (Markdown)",
-    icon: FileCode2,
-    defaultLabel: "",
-    defaultConfig: { content: "## Titre\n\nVotre texte ici, en **Markdown**." },
-    collectsData: false,
-    showLabelAbove: false,
-  },
-  {
-    type: "spacer",
-    label: "Espaceur",
-    icon: MoveVertical,
-    defaultLabel: "",
-    defaultConfig: { height: 24 },
-    collectsData: false,
-    showLabelAbove: false,
-  },
-  {
-    type: "divider",
-    label: "Ligne séparatrice",
-    icon: Minus,
-    defaultLabel: "",
-    defaultConfig: {},
-    collectsData: false,
-    showLabelAbove: false,
-  },
-];
+//// Tout ce que l'API ne peut pas décrire (une icône est un composant React,
+//// pas une donnée). L'existence des types, leur libellé et leur config
+//// attendue viennent de GET /block-types (voir BlockTypesContext.jsx) -> ce
+//// fichier ne porte plus que le recouvrement visuel/UX, volontairement court.
 
-export function getBlockTypeMeta(type) {
-  return BLOCK_TYPES.find((entry) => entry.type === type);
-}
+//// Type absent d'ici -> le panneau retombe sur un simple libellé texte
+//// (voir BlockTypePicker.jsx), jamais invisible.
+export const BLOCK_TYPE_ICONS = {
+  text: Type,
+  number: Hash,
+  datetime: CalendarClock,
+  checkbox: CheckSquare,
+  select: ListFilter,
+  heading: Heading,
+  paragraph: Pilcrow,
+  markdown: FileCode2,
+  spacer: MoveVertical,
+  divider: Minus,
+};
+
+//// Type absent d'ici -> retombe sur "collects_data" (fourni par l'API) comme
+//// valeur par défaut, cohérent avec la plupart des types réels
+export const BLOCK_TYPE_SHOW_LABEL_ABOVE = {
+  checkbox: false,
+};
+
+//// Type absent d'ici -> retombe sur {} ; pour un type avec des champs
+//// obligatoires côté API (ex: number a besoin de min/max), la création
+//// échouera proprement (422) plutôt que silencieusement
+export const BLOCK_TYPE_DEFAULT_CONFIG = {
+  number: { min: 0, max: 100, step: 1, show_slider: false },
+  select: { options: ["Option 1", "Option 2"], multiple: false, display: "dropdown" },
+  heading: { content: "Titre de section", level: 2 },
+  paragraph: { content: "Votre texte ici." },
+  markdown: { content: "## Titre\n\nVotre texte ici, en **Markdown**." },
+};
+
+//// Type absent d'ici -> retombe sur "" (cas des blocs de contenu, qui n'ont pas de libellé)
+export const BLOCK_TYPE_DEFAULT_LABEL = {
+  text: "Nouveau champ texte",
+  number: "Nouveau champ nombre",
+  datetime: "Nouveau champ date",
+  checkbox: "Nouvelle case à cocher",
+  select: "Nouveau choix",
+};

@@ -628,6 +628,19 @@
   background: var(--color-accent-soft);
   color: var(--color-accent-dark);
 }
+.type-card__fallback-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: var(--color-border);
+  color: var(--color-ink-soft);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
 .type-card:disabled {
   opacity: 0.5;
 }

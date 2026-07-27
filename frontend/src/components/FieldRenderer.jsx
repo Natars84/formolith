@@ -227,7 +227,11 @@ export default function FieldRenderer({ block, value, onChange }) {
   }
 
   if (type === "paragraph") {
-    return <p className="field-preview__paragraph">{config.content || "(paragraphe vide)"}</p>;
+    return (
+      <p className="field-preview__paragraph" style={{ textAlign: config.align || "left" }}>
+        {config.content || "(paragraphe vide)"}
+      </p>
+    );
   }
 
   if (type === "markdown") {
@@ -238,13 +242,17 @@ export default function FieldRenderer({ block, value, onChange }) {
     //// comportement par défaut non vérifié.
     const rawHtml = marked.parse(ensureBlankLineAfterLists(config.content || ""), { renderer: markdownRenderer });
     const html = DOMPurify.sanitize(rawHtml, { ADD_ATTR: ["target", "rel"] });
-    return <div className="field-preview__markdown" dangerouslySetInnerHTML={{ __html: html }} />;
+    return <div className="field-preview__markdown" style={{ textAlign: config.align || "left" }} dangerouslySetInnerHTML={{ __html: html }} />;
   }
 
   if (type === "heading") {
     const level = Math.min(6, Math.max(1, config.level || 2));
     const Tag = `h${level}`;
-    return <Tag className="field-preview__heading">{config.content || "(titre vide)"}</Tag>;
+    return (
+      <Tag className="field-preview__heading" style={{ textAlign: config.align || "left" }}>
+        {config.content || "(titre vide)"}
+      </Tag>
+    );
   }
 
   if (type === "spacer") {

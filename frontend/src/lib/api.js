@@ -39,6 +39,7 @@ export const getForm = (formId) => request("GET", `/forms/${formId}`);
 export const updateForm = (formId, changes) => request("PATCH", `/forms/${formId}`, changes);
 export const deleteForm = (formId) => request("DELETE", `/forms/${formId}`);
 export const duplicateForm = (formId) => request("POST", `/forms/${formId}/duplicate`);
+export const regeneratePublicToken = (formId) => request("POST", `/forms/${formId}/regenerate-public-token`);
 
 //// Catalogue des types de blocs (existence, libellé, config attendue) -> source unique, plutôt qu'une liste dupliquée à la main côté frontend
 export const listBlockTypes = () => request("GET", "/block-types");
@@ -56,5 +57,9 @@ export const reorderBlocks = (formId, blockIds) =>
 export const listSubmissions = (formId) => request("GET", `/forms/${formId}/submissions`);
 export const deleteSubmission = (formId, submissionId) =>
   request("DELETE", `/forms/${formId}/submissions/${submissionId}`);
+
+//// Accès public (lien de partage) -> jamais l'id interne du formulaire, uniquement le token
+export const getPublicForm = (token) => request("GET", `/public/forms/${token}`);
+export const submitPublicForm = (token, data) => request("POST", `/public/forms/${token}/submissions`, { data });
 
 export { ApiError };

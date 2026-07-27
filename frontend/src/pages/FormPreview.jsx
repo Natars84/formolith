@@ -2,17 +2,10 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { getForm, listBlocks } from "../lib/api";
 import { useBlockTypes } from "../context/BlockTypesContext";
+import { findMissingRequiredBlocks } from "../lib/formValidation";
 import FieldRenderer from "../components/FieldRenderer";
 
 const WIDTH_CLASS = { full: "block-item--full", half: "block-item--half", third: "block-item--third" };
-
-//// Une valeur est-elle "vide" pour ce type de bloc précis ? (une case décochée,
-//// un select multiple sans rien choisi, etc. n'ont pas la même notion de "vide")
-function isEmptyValue(block, value) {
-  if (block.type === "checkbox") return value !== true;
-  if (block.type === "select" && block.config.multiple) return !value || value.length === 0;
-  return value === undefined || value === null || value === "";
-}
 
 //// Rendu du formulaire tel qu'un répondant le verrait, y compris la validation
 //// des champs obligatoires -> seul l'envoi réel à l'API est neutralisé.
@@ -62,13 +55,7 @@ export default function FormPreview() {
   function handleSubmit(e) {
     e.preventDefault();
 
-    const missing = new Set();
-    for (const block of blocks) {
-      if (!getMeta(block.type)?.collectsData) continue;
-      if (block.required && isEmptyValue(block, values[block.id])) {
-        missing.add(block.id);
-      }
-    }
+    const missing = findMissingRequiredBlocks(blocks, values, getMeta);
 
     if (missing.size > 0) {
       setInvalidBlockIds(missing);

@@ -13,6 +13,9 @@ def _run(form_id):
     status, err = call("POST", f"/forms/{form_id}/blocks", {"type": "heading", "label": "", "config": {"content": "Section", "level": "deux"}})
     check("POST /blocks : heading avec level non numérique rejeté (422)", status == 422, f"reçu {status} {err}")
 
+    status, err = call("POST", f"/forms/{form_id}/blocks", {"type": "heading", "label": "", "config": {"content": "Section", "align": "diagonal"}})
+    check("POST /blocks : heading avec align hors liste rejeté (422)", status == 422, f"reçu {status} {err}")
+
     call("PATCH", f"/forms/{form_id}", {"status": "published"})
 
     status, submission = call("POST", f"/forms/{form_id}/submissions", {"data": {}})

@@ -40,6 +40,9 @@ export const updateForm = (formId, changes) => request("PATCH", `/forms/${formId
 export const deleteForm = (formId) => request("DELETE", `/forms/${formId}`);
 export const duplicateForm = (formId) => request("POST", `/forms/${formId}/duplicate`);
 
+//// Catalogue des types de blocs (existence, libellé, config attendue) -> source unique, plutôt qu'une liste dupliquée à la main côté frontend
+export const listBlockTypes = () => request("GET", "/block-types");
+
 //// Blocs
 export const listBlocks = (formId) => request("GET", `/forms/${formId}/blocks`);
 export const createBlock = (formId, block) => request("POST", `/forms/${formId}/blocks`, block);

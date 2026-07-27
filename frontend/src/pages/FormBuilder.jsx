@@ -9,7 +9,7 @@ import {
   deleteBlock,
   reorderBlocks,
 } from "../lib/api";
-import { getBlockTypeMeta } from "../lib/blockTypes";
+import { useBlockTypes } from "../context/BlockTypesContext";
 import BlockCanvasItem from "../components/BlockCanvasItem";
 import BlockTypePicker from "../components/BlockTypePicker";
 import BlockSettingsForm from "../components/BlockSettingsForm";
@@ -25,6 +25,7 @@ export default function FormBuilder() {
   const [saveStatus, setSaveStatus] = useState("idle");
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState("");
+  const { types: blockTypes } = useBlockTypes();
 
   useEffect(() => {
     let cancelled = false;
@@ -63,7 +64,8 @@ export default function FormBuilder() {
   }
 
   function handleAddBlock(type) {
-    const meta = getBlockTypeMeta(type);
+    const meta = blockTypes?.find((entry) => entry.type === type);
+    if (!meta) return; // catalogue pas encore chargé -> le panneau est de toute façon désactivé jusque-là
     runSaving(async () => {
       const block = await createBlock(formId, {
         type,

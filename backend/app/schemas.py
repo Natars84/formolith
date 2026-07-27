@@ -23,6 +23,7 @@ class FormRead(BaseModel):
     id: uuid.UUID
     title: str
     status: str
+    public_token: str
     created_at: datetime
     updated_at: datetime
 
@@ -81,3 +82,24 @@ class SubmissionRead(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+#### Vue d'un bloc côté accès public -> jamais form_id, contrairement à BlockRead
+#### (form_id est l'id de gestion ; le lien public ne doit jamais permettre d'y remonter)
+class PublicBlockRead(BaseModel):
+    id: uuid.UUID
+    position: int
+    type: str
+    label: str
+    required: bool
+    width: str
+    config: dict
+
+    class Config:
+        from_attributes = True
+
+
+#### Vue d'un formulaire côté accès public -> juste de quoi l'afficher et le remplir
+class PublicFormRead(BaseModel):
+    title: str
+    blocks: list[PublicBlockRead]

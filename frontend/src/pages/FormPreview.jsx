@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { getForm, listBlocks } from "../lib/api";
-import { getBlockTypeMeta } from "../lib/blockTypes";
+import { useBlockTypes } from "../context/BlockTypesContext";
 import FieldRenderer from "../components/FieldRenderer";
 
 const WIDTH_CLASS = { full: "block-item--full", half: "block-item--half", third: "block-item--third" };
@@ -25,6 +25,11 @@ export default function FormPreview() {
   const [submitted, setSubmitted] = useState(false);
   const [values, setValues] = useState({});
   const [invalidBlockIds, setInvalidBlockIds] = useState(new Set());
+  const { types: blockTypes } = useBlockTypes();
+
+  function getMeta(type) {
+    return blockTypes?.find((entry) => entry.type === type) || null;
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -59,7 +64,7 @@ export default function FormPreview() {
 
     const missing = new Set();
     for (const block of blocks) {
-      if (!getBlockTypeMeta(block.type)?.collectsData) continue;
+      if (!getMeta(block.type)?.collectsData) continue;
       if (block.required && isEmptyValue(block, values[block.id])) {
         missing.add(block.id);
       }
@@ -116,7 +121,7 @@ export default function FormPreview() {
 
           <form className="preview-form" onSubmit={handleSubmit}>
             {blocks.map((block) => {
-              const meta = getBlockTypeMeta(block.type);
+              const meta = getMeta(block.type);
               const invalid = invalidBlockIds.has(block.id);
               return (
                 <div key={block.id} className={`block-item ${WIDTH_CLASS[block.width] || WIDTH_CLASS.full}`}>

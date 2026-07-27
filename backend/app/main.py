@@ -1,3 +1,4 @@
+import secrets
 import uuid
 
 from fastapi import Depends, FastAPI, HTTPException
@@ -24,11 +25,12 @@ from app.schemas import (
     FormCreate,
     FormRead,
     FormUpdate,
+    PublicFormRead,
     SubmissionCreate,
     SubmissionRead,
 )
 
-app = FastAPI(title="FormBuilder API", version="0.2.0")
+app = FastAPI(title="FormBuilder API", version="0.3.0")
 
 #### Autorise le frontend (autre origine que l'API) à faire des appels depuis le navigateur
 #### TODO : restreindre à l'origine réelle du frontend une fois déployé, plutôt que "*"
@@ -138,6 +140,16 @@ def duplicate_form(form_id: uuid.UUID, db: Session = Depends(get_db)):
     return duplicate
 
 
+#### Génère un nouveau lien public, invalidant l'ancien -> utile si le lien a fuité quelque part
+@app.post("/forms/{form_id}/regenerate-public-token", response_model=FormRead)
+def regenerate_public_token(form_id: uuid.UUID, db: Session = Depends(get_db)):
+    form = get_form_or_404(form_id, db)
+    form.public_token = secrets.token_urlsafe(16)
+    db.commit()
+    db.refresh(form)
+    return form
+
+
 #### Ajoute un bloc à un formulaire, en fin de liste (position calculée automatiquement)
 @app.post("/forms/{form_id}/blocks", response_model=BlockRead)
 def create_block(form_id: uuid.UUID, payload: BlockCreate, db: Session = Depends(get_db)):
@@ -237,26 +249,31 @@ def delete_block(form_id: uuid.UUID, block_id: uuid.UUID, db: Session = Depends(
     db.commit()
 
 
-#### Enregistre une réponse -> chaque valeur est validée contre le bloc réel qu'elle prétend remplir
-@app.post("/forms/{form_id}/submissions", response_model=SubmissionRead)
-def create_submission(form_id: uuid.UUID, payload: SubmissionCreate, db: Session = Depends(get_db)):
-    form = get_form_or_404(form_id, db)
-
-    #### Seul un formulaire publié peut recevoir des réponses
+#### Logique commune à la création d'une réponse, peu importe qu'elle vienne de
+#### l'endpoint admin (form_id) ou de l'endpoint public (token) -> même règles,
+#### mêmes erreurs, un seul endroit à maintenir
+def _create_submission(form: Form, data: dict, db: Session) -> Submission:
     if form.status != "published":
         raise HTTPException(status_code=403, detail="Ce formulaire n'accepte pas de réponses pour le moment")
 
-    blocks = db.query(Block).filter(Block.form_id == form_id).all()
+    blocks = db.query(Block).filter(Block.form_id == form.id).all()
     try:
-        validated_data = validate_submission_data(blocks, payload.data)
+        validated_data = validate_submission_data(blocks, data)
     except SubmissionValidationError as exc:
         raise HTTPException(status_code=422, detail=exc.errors)
 
-    submission = Submission(form_id=form_id, data=validated_data)
+    submission = Submission(form_id=form.id, data=validated_data)
     db.add(submission)
     db.commit()
     db.refresh(submission)
     return submission
+
+
+#### Enregistre une réponse -> chaque valeur est validée contre le bloc réel qu'elle prétend remplir
+@app.post("/forms/{form_id}/submissions", response_model=SubmissionRead)
+def create_submission(form_id: uuid.UUID, payload: SubmissionCreate, db: Session = Depends(get_db)):
+    form = get_form_or_404(form_id, db)
+    return _create_submission(form, payload.data, db)
 
 
 #### Liste les réponses d'un formulaire, les plus récentes en premier
@@ -295,3 +312,32 @@ def delete_submission(form_id: uuid.UUID, submission_id: uuid.UUID, db: Session 
     submission = get_submission_or_404(form_id, submission_id, db)
     db.delete(submission)
     db.commit()
+
+
+#### ------------------------------------------------------------------
+#### Accès public (lien de partage) -> jamais l'id interne du formulaire
+#### dans ce qui est renvoyé, uniquement le token. Un formulaire non
+#### publié est introuvable ici, même avec le bon token.
+#### ------------------------------------------------------------------
+
+
+def get_form_by_token_or_404(token: str, db: Session) -> Form:
+    form = db.query(Form).filter(Form.public_token == token).first()
+    if form is None or form.status != "published":
+        raise HTTPException(status_code=404, detail="Formulaire introuvable")
+    return form
+
+
+#### Formulaire tel qu'un répondant doit le voir : titre + blocs, rien d'autre
+@app.get("/public/forms/{token}", response_model=PublicFormRead)
+def get_public_form(token: str, db: Session = Depends(get_db)):
+    form = get_form_by_token_or_404(token, db)
+    blocks = db.query(Block).filter(Block.form_id == form.id).order_by(Block.position).all()
+    return {"title": form.title, "blocks": blocks}
+
+
+#### Enregistre une réponse via le lien public -> mêmes règles que l'endpoint admin (_create_submission)
+@app.post("/public/forms/{token}/submissions", status_code=204)
+def create_public_submission(token: str, payload: SubmissionCreate, db: Session = Depends(get_db)):
+    form = get_form_by_token_or_404(token, db)
+    _create_submission(form, payload.data, db)

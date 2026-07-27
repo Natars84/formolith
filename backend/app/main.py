@@ -6,7 +6,14 @@ from pydantic import ValidationError
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.block_types import BlockType, SubmissionValidationError, validate_block_config, validate_submission_data
+from app.block_types import (
+    BlockType,
+    BLOCK_CONFIG_SCHEMAS,
+    SubmissionValidationError,
+    describe_block_type,
+    validate_block_config,
+    validate_submission_data,
+)
 from app.database import check_db_connection, get_db
 from app.models import Block, Form, Submission
 from app.schemas import (
@@ -41,6 +48,13 @@ def health_check():
         "status": "ok" if db_ok else "degraded",
         "database": "connected" if db_ok else "unreachable",
     }
+
+
+#### Catalogue des types de blocs disponibles -> source unique pour le frontend,
+#### qui n'a plus qu'à connaître ses propres détails d'affichage (icônes) en plus
+@app.get("/block-types")
+def list_block_types():
+    return [describe_block_type(block_type) for block_type in BLOCK_CONFIG_SCHEMAS]
 
 
 #### Crée un formulaire vide (sans bloc) -> valide que la table forms fonctionne

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { X, Plus, Trash2, Bold, Italic, Heading2, List, ListOrdered, Link2, Quote } from "lucide-react";
-import { getBlockTypeMeta } from "../lib/blockTypes";
+import { useBlockTypeMeta } from "../context/BlockTypesContext";
 
 const WIDTH_OPTIONS = [
   { value: "full", label: "Pleine largeur" },
@@ -57,7 +57,7 @@ export default function BlockSettingsForm({ block, onUpdate, onDelete, onClose }
     onUpdate({ config: nextConfig });
   }
 
-  const isContentBlock = !getBlockTypeMeta(block.type)?.collectsData;
+  const isContentBlock = !useBlockTypeMeta(block.type)?.collectsData;
 
   return (
     <div className="side-panel">

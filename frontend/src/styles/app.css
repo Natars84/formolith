@@ -709,6 +709,31 @@
   color: var(--color-ink-soft);
 }
 
+.align-options {
+  display: flex;
+  gap: 2px;
+}
+.align-option {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  min-height: 36px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  border-radius: var(--radius-sm);
+  color: var(--color-ink-soft);
+}
+.align-option:hover {
+  border-color: var(--color-ink-faint);
+  color: var(--color-ink);
+}
+.align-option[aria-pressed="true"] {
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent);
+  color: var(--color-accent-dark);
+}
+
 /* ---------- Aperçu ---------- */
 
 .preview-backdrop {

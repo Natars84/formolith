@@ -11,3 +11,6 @@ def _run(form_id):
 
     status, err = call("POST", f"/forms/{form_id}/blocks", {"type": "markdown", "label": "", "config": {"content": ["pas une chaîne"]}})
     check("POST /blocks : markdown avec content non textuel rejeté (422)", status == 422, f"reçu {status} {err}")
+
+    status, err = call("POST", f"/forms/{form_id}/blocks", {"type": "markdown", "label": "", "config": {"content": "Texte", "align": "diagonal"}})
+    check("POST /blocks : markdown avec align hors liste rejeté (422)", status == 422, f"reçu {status} {err}")

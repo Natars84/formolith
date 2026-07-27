@@ -1,5 +1,20 @@
 import { useEffect, useRef, useState } from "react";
-import { X, Plus, Trash2, Bold, Italic, Heading2, List, ListOrdered, Link2, Quote } from "lucide-react";
+import {
+  X,
+  Plus,
+  Trash2,
+  Bold,
+  Italic,
+  Heading2,
+  List,
+  ListOrdered,
+  Link2,
+  Quote,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  AlignJustify,
+} from "lucide-react";
 import { useBlockTypeMeta } from "../context/BlockTypesContext";
 
 const WIDTH_OPTIONS = [
@@ -7,6 +22,37 @@ const WIDTH_OPTIONS = [
   { value: "half", label: "Moitié" },
   { value: "third", label: "Tiers" },
 ];
+
+const ALIGN_OPTIONS = [
+  { value: "left", label: "Aligné à gauche", icon: AlignLeft },
+  { value: "center", label: "Centré", icon: AlignCenter },
+  { value: "right", label: "Aligné à droite", icon: AlignRight },
+  { value: "justify", label: "Justifié", icon: AlignJustify },
+];
+
+//// Groupe de boutons d'alignement, réutilisé par paragraph/markdown/heading
+function AlignmentField({ value, onChange }) {
+  return (
+    <div className="field-group">
+      <span className="field-group__label">Alignement</span>
+      <div className="align-options" role="group" aria-label="Alignement du texte">
+        {ALIGN_OPTIONS.map(({ value: optionValue, label, icon: Icon }) => (
+          <button
+            key={optionValue}
+            type="button"
+            className="align-option"
+            aria-pressed={value === optionValue}
+            title={label}
+            onClick={() => onChange(optionValue)}
+          >
+            <Icon size={16} aria-hidden="true" />
+            <span className="sr-only">{label}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 //// Entrée valide et referme le champ (déclenche sa sauvegarde via onBlur) sur les champs mono-ligne
 function blurOnEnter(e) {
@@ -120,15 +166,18 @@ export default function BlockSettingsForm({ block, onUpdate, onDelete, onClose }
 function TypeSpecificFields({ type, config, onSave }) {
   if (type === "paragraph") {
     return (
-      <label className="field-group">
-        <span className="field-group__label">Texte affiché</span>
-        <textarea
-          rows={4}
-          defaultValue={config.content}
-          onBlur={(e) => onSave({ ...config, content: e.target.value })}
-          onKeyDown={blurOnCtrlEnter}
-        />
-      </label>
+      <>
+        <label className="field-group">
+          <span className="field-group__label">Texte affiché</span>
+          <textarea
+            rows={4}
+            defaultValue={config.content}
+            onBlur={(e) => onSave({ ...config, content: e.target.value })}
+            onKeyDown={blurOnCtrlEnter}
+          />
+        </label>
+        <AlignmentField value={config.align || "left"} onChange={(align) => onSave({ ...config, align })} />
+      </>
     );
   }
 
@@ -161,6 +210,7 @@ function TypeSpecificFields({ type, config, onSave }) {
             ))}
           </select>
         </label>
+        <AlignmentField value={config.align || "left"} onChange={(align) => onSave({ ...config, align })} />
       </>
     );
   }
@@ -454,52 +504,55 @@ function MarkdownEditor({ config, onSave }) {
   }
 
   return (
-    <label className="field-group">
-      <span className="field-group__label">Texte affiché (syntaxe Markdown)</span>
-      <div className="markdown-toolbar" role="toolbar" aria-label="Mise en forme Markdown">
-        <button type="button" onMouseDown={keepFocus} onClick={() => wrapSelection("**", "**", "gras")} title="Gras">
-          <Bold size={14} aria-hidden="true" />
-          <span className="sr-only">Gras</span>
-        </button>
-        <button type="button" onMouseDown={keepFocus} onClick={() => wrapSelection("*", "*", "italique")} title="Italique">
-          <Italic size={14} aria-hidden="true" />
-          <span className="sr-only">Italique</span>
-        </button>
-        <button type="button" onMouseDown={keepFocus} onClick={() => prefixLine("## ")} title="Titre">
-          <Heading2 size={14} aria-hidden="true" />
-          <span className="sr-only">Titre</span>
-        </button>
-        <button type="button" onMouseDown={keepFocus} onClick={() => prefixLine("- ")} title="Liste à puces">
-          <List size={14} aria-hidden="true" />
-          <span className="sr-only">Liste à puces</span>
-        </button>
-        <button type="button" onMouseDown={keepFocus} onClick={prefixOrderedListLine} title="Liste numérotée">
-          <ListOrdered size={14} aria-hidden="true" />
-          <span className="sr-only">Liste numérotée</span>
-        </button>
-        <button
-          type="button"
-          onMouseDown={keepFocus}
-          onClick={() => wrapSelection("[", "](https://)", "texte du lien")}
-          title="Lien"
-        >
-          <Link2 size={14} aria-hidden="true" />
-          <span className="sr-only">Lien</span>
-        </button>
-        <button type="button" onMouseDown={keepFocus} onClick={() => prefixLine("> ")} title="Citation">
-          <Quote size={14} aria-hidden="true" />
-          <span className="sr-only">Citation</span>
-        </button>
-      </div>
-      <textarea
-        ref={textareaRef}
-        rows={8}
-        className="field-group__markdown-input"
-        defaultValue={config.content}
-        onBlur={(e) => onSave({ ...config, content: e.target.value })}
-        onKeyDown={handleKeyDown}
-      />
-      <span className="field-group__hint">Ctrl+Entrée (ou Cmd+Entrée) pour enregistrer</span>
-    </label>
+    <>
+      <label className="field-group">
+        <span className="field-group__label">Texte affiché (syntaxe Markdown)</span>
+        <div className="markdown-toolbar" role="toolbar" aria-label="Mise en forme Markdown">
+          <button type="button" onMouseDown={keepFocus} onClick={() => wrapSelection("**", "**", "gras")} title="Gras">
+            <Bold size={14} aria-hidden="true" />
+            <span className="sr-only">Gras</span>
+          </button>
+          <button type="button" onMouseDown={keepFocus} onClick={() => wrapSelection("*", "*", "italique")} title="Italique">
+            <Italic size={14} aria-hidden="true" />
+            <span className="sr-only">Italique</span>
+          </button>
+          <button type="button" onMouseDown={keepFocus} onClick={() => prefixLine("## ")} title="Titre">
+            <Heading2 size={14} aria-hidden="true" />
+            <span className="sr-only">Titre</span>
+          </button>
+          <button type="button" onMouseDown={keepFocus} onClick={() => prefixLine("- ")} title="Liste à puces">
+            <List size={14} aria-hidden="true" />
+            <span className="sr-only">Liste à puces</span>
+          </button>
+          <button type="button" onMouseDown={keepFocus} onClick={prefixOrderedListLine} title="Liste numérotée">
+            <ListOrdered size={14} aria-hidden="true" />
+            <span className="sr-only">Liste numérotée</span>
+          </button>
+          <button
+            type="button"
+            onMouseDown={keepFocus}
+            onClick={() => wrapSelection("[", "](https://)", "texte du lien")}
+            title="Lien"
+          >
+            <Link2 size={14} aria-hidden="true" />
+            <span className="sr-only">Lien</span>
+          </button>
+          <button type="button" onMouseDown={keepFocus} onClick={() => prefixLine("> ")} title="Citation">
+            <Quote size={14} aria-hidden="true" />
+            <span className="sr-only">Citation</span>
+          </button>
+        </div>
+        <textarea
+          ref={textareaRef}
+          rows={8}
+          className="field-group__markdown-input"
+          defaultValue={config.content}
+          onBlur={(e) => onSave({ ...config, content: e.target.value })}
+          onKeyDown={handleKeyDown}
+        />
+        <span className="field-group__hint">Ctrl+Entrée (ou Cmd+Entrée) pour enregistrer</span>
+      </label>
+      <AlignmentField value={config.align || "left"} onChange={(align) => onSave({ ...config, align })} />
+    </>
   );
 }

@@ -2,9 +2,15 @@
 """
 Script de tests d'intégration pour l'API Formolith.
 
-Crée un formulaire dédié aux tests, y ajoute des blocs de chaque type,
-vérifie le comportement de chaque endpoint (cas valides ET invalides),
-puis supprime tout ce qu'il a créé, même en cas d'échec en cours de route.
+Deux parties :
+1. Mécanique générale des formulaires (création, liste, statut, blocs,
+   réorganisation, réponses, duplication) -> ci-dessous, avec des blocs
+   text/number/checkbox/select comme simples supports.
+2. Validation propre à chaque type de bloc -> un fichier par type dans
+   block_type_tests/, découvert automatiquement. Pour ajouter un nouveau
+   type de bloc, il suffit d'ajouter un fichier là-bas (voir le patron
+   des fichiers existants) ; ce script n'a jamais besoin d'être modifié
+   pour ça.
 
 Avant de lancer les tests, vérifie que l'URL cible répond. Si ce n'est
 pas le cas (argument fourni, variable d'environnement, ou défaut local),
@@ -15,91 +21,50 @@ Usage :
     python3 test_api.py http://192.168.1.50:8000
     FORMOLITH_API_URL=http://formolith.cutlass.red python3 test_api.py
 """
-import json
-import os
+import importlib
+import pkgutil
 import sys
-import urllib.error
-import urllib.request
 
-BASE_URL = None  # défini par resolve_base_url() au lancement
-
-#### Résultats accumulés au fil des tests, affichés en résumé à la fin
-results = []
+import block_type_tests
+from test_helpers import call, check, resolve_base_url, results
 
 
-#### Décode le corps de la réponse en JSON ; si ce n'est pas du JSON valide, renvoie un aperçu brut plutôt que de crasher
-def parse_body(raw: bytes):
-    if not raw:
-        return None
-    try:
-        return json.loads(raw)
-    except json.JSONDecodeError:
-        return {"_raw_response": raw.decode(errors="replace")[:500]}
+#### Types attendus dans le catalogue -> à mettre à jour à chaque nouveau type de bloc ajouté
+#### (le fichier de test lui-même, dans block_type_tests/, est découvert automatiquement ;
+#### cette liste ne sert qu'à vérifier que /block-types les expose tous)
+EXPECTED_BLOCK_TYPES = {
+    "text", "number", "datetime", "checkbox", "select",
+    "paragraph", "markdown", "heading", "spacer", "divider",
+}
 
 
-#### Fait un appel HTTP brut, renvoie (status_code, corps_décodé) -> ne lève jamais d'exception
-def call(method: str, path: str, body: dict | None = None):
-    url = f"{BASE_URL}{path}"
-    data = json.dumps(body).encode() if body is not None else None
-    req = urllib.request.Request(url, data=data, method=method)
-    req.add_header("Content-Type", "application/json")
-    try:
-        with urllib.request.urlopen(req) as response:
-            return response.status, parse_body(response.read())
-    except urllib.error.HTTPError as exc:
-        return exc.code, parse_body(exc.read())
-    except urllib.error.URLError as exc:
-        return None, {"_error": str(exc)}
-    except Exception as exc:
-        return None, {"_error": f"{type(exc).__name__}: {exc}"}
-
-
-#### Teste si une URL donnée répond sur /health, sans lever d'exception
-def is_reachable(url: str) -> bool:
-    try:
-        with urllib.request.urlopen(f"{url}/health", timeout=3):
-            return True
-    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError):
-        return False
-
-
-#### Détermine l'URL cible : argument > variable d'env > défaut local, puis demande tant que ça ne répond pas
-def resolve_base_url() -> str:
-    if len(sys.argv) > 1:
-        candidate = sys.argv[1].rstrip("/")
-    else:
-        candidate = os.environ.get("FORMOLITH_API_URL", "http://localhost:8000").rstrip("/")
-
-    while not is_reachable(candidate):
-        print(f"Impossible de joindre {candidate}")
-        candidate = input("URL de l'API (ex: http://192.168.1.50:8000), vide pour quitter : ").strip().rstrip("/")
-        if candidate == "":
-            print("Abandon, aucune URL valide fournie.")
-            sys.exit(1)
-
-    print(f"Cible : {candidate}\n")
-    return candidate
-
-
-#### Enregistre le résultat d'un test et l'affiche immédiatement
-def check(name: str, condition: bool, detail: str = ""):
-    status = "PASS" if condition else "FAIL"
-    results.append((name, condition))
-    line = f"[{status}] {name}"
-    if detail and not condition:
-        line += f"  -> {detail}"
-    print(line)
+#### Exécute run() de chaque module de block_type_tests/ -> aucune modification
+#### nécessaire ici pour qu'un nouveau fichier de test soit pris en compte
+def run_block_type_tests():
+    for _, module_name, _ in pkgutil.iter_modules(block_type_tests.__path__):
+        module = importlib.import_module(f"block_type_tests.{module_name}")
+        if hasattr(module, "run"):
+            module.run()
 
 
 def main():
-    global BASE_URL
-    BASE_URL = resolve_base_url()
+    resolve_base_url()
 
     #### 0. Sanité de base avant de commencer quoi que ce soit
     status, body = call("GET", "/health")
     check("GET /health répond 200 ok", status == 200 and body.get("status") == "ok", f"reçu {status} {body}")
 
-    #### 1. Création du formulaire dédié aux tests
+    #### 0bis. Catalogue des types de blocs -> chaque type attendu doit être présent, avec la bonne forme
+    status, block_types = call("GET", "/block-types")
+    block_types_ok = (
+        status == 200
+        and isinstance(block_types, list)
+        and {entry.get("type") for entry in block_types} == EXPECTED_BLOCK_TYPES
+        and all({"type", "display_name", "collects_data", "config_schema"} <= entry.keys() for entry in block_types)
+    )
+    check("GET /block-types : catalogue complet et bien formé", block_types_ok, f"reçu {status} {block_types}")
+
+    #### 1. Création du formulaire dédié à la mécanique générale
     status, form = call("POST", "/forms", {"title": "Formulaire de test (script automatique)"})
     form_created = status == 200 and isinstance(form, dict) and "id" in form
     check("POST /forms crée un formulaire", form_created, f"reçu {status} {form}")
@@ -119,131 +84,84 @@ def main():
     check("GET /forms : le formulaire de test apparaît dans la liste", status == 200 and form_ids is not None and form_id in form_ids, f"reçu {status} {all_forms}")
 
     try:
-        #### 2. Création des blocs, un de chaque type, avec un état connu
-        status, block_text = call(
-            "POST", f"/forms/{form_id}/blocks",
-            {"type": "text", "label": "Prénom", "required": True, "config": {"max_length": 5}},
-        )
-        check("POST /blocks : texte valide (required, max_length=5)", status == 200, f"reçu {status} {block_text}")
+        #### 2. Quatre blocs, simples supports pour tester la mécanique (pas leur propre validation, voir block_type_tests/)
+        status, block_text = call("POST", f"/forms/{form_id}/blocks", {"type": "text", "label": "Prénom", "required": True})
+        check("POST /blocks : bloc support (text)", status == 200, f"reçu {status} {block_text}")
 
-        status, block_slider = call(
-            "POST", f"/forms/{form_id}/blocks",
-            {"type": "slider", "label": "Âge", "config": {"min": 0, "max": 10}},
-        )
-        check("POST /blocks : slider valide (0-10)", status == 200, f"reçu {status} {block_slider}")
+        status, block_number = call("POST", f"/forms/{form_id}/blocks", {"type": "number", "label": "Âge", "config": {"min": 0, "max": 10}})
+        check("POST /blocks : bloc support (number)", status == 200, f"reçu {status} {block_number}")
 
-        status, block_checkbox = call(
-            "POST", f"/forms/{form_id}/blocks",
-            {"type": "checkbox", "label": "CGU acceptées"},
-        )
-        check("POST /blocks : checkbox valide", status == 200, f"reçu {status} {block_checkbox}")
+        status, block_checkbox = call("POST", f"/forms/{form_id}/blocks", {"type": "checkbox", "label": "CGU acceptées"})
+        check("POST /blocks : bloc support (checkbox)", status == 200, f"reçu {status} {block_checkbox}")
 
-        status, block_select = call(
-            "POST", f"/forms/{form_id}/blocks",
-            {"type": "select", "label": "Niveau", "config": {"options": ["Débutant", "Confirmé"]}},
-        )
-        check("POST /blocks : select valide", status == 200, f"reçu {status} {block_select}")
+        status, block_select = call("POST", f"/forms/{form_id}/blocks", {"type": "select", "label": "Niveau", "config": {"options": ["Débutant", "Confirmé"]}})
+        check("POST /blocks : bloc support (select)", status == 200, f"reçu {status} {block_select}")
 
-        #### 3. Rejet d'un bloc mal configuré (slider sans min)
-        status, err = call(
-            "POST", f"/forms/{form_id}/blocks",
-            {"type": "slider", "label": "Invalide", "config": {"max": 100}},
-        )
-        check("POST /blocks : slider sans min rejeté (422)", status == 422, f"reçu {status} {err}")
-
-        #### 4. Lecture de la liste, positions attendues 1 à 4
+        #### 3. Lecture de la liste, positions attendues 1 à 4
         status, blocks = call("GET", f"/forms/{form_id}/blocks")
         positions = [b["position"] for b in blocks] if isinstance(blocks, list) else None
         check("GET /blocks : 4 blocs, positions 1..4", status == 200 and positions == [1, 2, 3, 4], f"reçu {status} {blocks}")
 
-        #### 5. Modification d'un bloc (label uniquement)
+        #### 4. Modification d'un bloc (label uniquement)
         status, updated = call("PATCH", f"/forms/{form_id}/blocks/{block_text['id']}", {"label": "Prénom (modifié)"})
         check("PATCH /blocks : modifie le label", status == 200 and updated["label"] == "Prénom (modifié)", f"reçu {status} {updated}")
 
-        #### 6. Réorganisation : on inverse les 4 blocs
-        reordered_ids = [block_select["id"], block_checkbox["id"], block_slider["id"], block_text["id"]]
+        #### 5. Réorganisation : on inverse les 4 blocs
+        reordered_ids = [block_select["id"], block_checkbox["id"], block_number["id"], block_text["id"]]
         status, reordered = call("PATCH", f"/forms/{form_id}/blocks/reorder", {"block_ids": reordered_ids})
         new_positions = [b["id"] for b in reordered] if isinstance(reordered, list) else None
         check("PATCH /blocks/reorder : nouvel ordre appliqué", status == 200 and new_positions == reordered_ids, f"reçu {status} {reordered}")
 
-        #### 7. Rejet d'une réorganisation incomplète
+        #### 6. Rejet d'une réorganisation incomplète
         status, err = call("PATCH", f"/forms/{form_id}/blocks/reorder", {"block_ids": [block_text["id"]]})
         check("PATCH /blocks/reorder : liste incomplète rejetée (422)", status == 422, f"reçu {status} {err}")
 
-        #### 7bis. Un formulaire encore en draft (statut par défaut à la création) doit refuser toute réponse
+        #### 7. Un formulaire encore en draft doit refuser toute réponse
         status, err = call(
             "POST", f"/forms/{form_id}/submissions",
-            {"data": {block_text["id"]: "Jean", block_slider["id"]: 5, block_checkbox["id"]: True, block_select["id"]: "Débutant"}},
+            {"data": {block_text["id"]: "Jean", block_number["id"]: 5, block_checkbox["id"]: True, block_select["id"]: "Débutant"}},
         )
         check("POST /submissions : formulaire en draft rejeté (403)", status == 403, f"reçu {status} {err}")
 
-        #### 7ter. On publie le formulaire -> les réponses suivantes doivent être acceptées
+        #### 8. On publie le formulaire -> les réponses suivantes doivent être acceptées
         status, published_form = call("PATCH", f"/forms/{form_id}", {"status": "published"})
         check("PATCH /forms : passage en published", status == 200 and published_form.get("status") == "published", f"reçu {status} {published_form}")
 
-        #### 8. Réponse valide (tous les blocs correctement remplis)
+        #### 9. Réponse valide (tous les blocs correctement remplis)
         status, submission = call(
             "POST", f"/forms/{form_id}/submissions",
-            {"data": {
-                block_text["id"]: "Jean",
-                block_slider["id"]: 7,
-                block_checkbox["id"]: True,
-                block_select["id"]: "Débutant",
-            }},
+            {"data": {block_text["id"]: "Jean", block_number["id"]: 7, block_checkbox["id"]: True, block_select["id"]: "Débutant"}},
         )
         submission_created = status == 200 and isinstance(submission, dict) and "id" in submission
         check("POST /submissions : réponse valide acceptée", submission_created, f"reçu {status} {submission}")
 
         submission_id = submission["id"] if submission_created else "00000000-0000-0000-0000-000000000000"
 
-        #### 9. Rejet : champ requis manquant (le texte, marqué required)
-        status, err = call(
-            "POST", f"/forms/{form_id}/submissions",
-            {"data": {block_slider["id"]: 5}},
-        )
+        #### 10. Rejet : champ requis manquant, clé référant un bloc inexistant
+        status, err = call("POST", f"/forms/{form_id}/submissions", {"data": {block_number["id"]: 5}})
         check("POST /submissions : champ requis manquant rejeté (422)", status == 422, f"reçu {status} {err}")
 
-        #### 10. Rejet : slider hors bornes
-        status, err = call(
-            "POST", f"/forms/{form_id}/submissions",
-            {"data": {block_text["id"]: "Jean", block_slider["id"]: 999}},
-        )
-        check("POST /submissions : slider hors bornes rejeté (422)", status == 422, f"reçu {status} {err}")
-
-        #### 11. Rejet : valeur select hors options
-        status, err = call(
-            "POST", f"/forms/{form_id}/submissions",
-            {"data": {block_text["id"]: "Jean", block_select["id"]: "Expert"}},
-        )
-        check("POST /submissions : select hors options rejeté (422)", status == 422, f"reçu {status} {err}")
-
-        #### 12. Rejet : clé référant un bloc inexistant
-        status, err = call(
-            "POST", f"/forms/{form_id}/submissions",
-            {"data": {block_text["id"]: "Jean", "00000000-0000-0000-0000-000000000000": "x"}},
-        )
+        status, err = call("POST", f"/forms/{form_id}/submissions", {"data": {block_text["id"]: "Jean", "00000000-0000-0000-0000-000000000000": "x"}})
         check("POST /submissions : bloc inconnu rejeté (422)", status == 422, f"reçu {status} {err}")
 
-        #### 13. Liste des réponses : une seule (la valide, les autres ont été rejetées avant écriture)
+        #### 11. Liste, lecture, suppression d'une réponse
         status, submissions = call("GET", f"/forms/{form_id}/submissions")
         check("GET /submissions : exactement 1 réponse enregistrée", status == 200 and len(submissions) == 1, f"reçu {len(submissions) if submissions else 0}")
 
-        #### 14. Lecture d'une réponse précise
         status, one = call("GET", f"/forms/{form_id}/submissions/{submission_id}")
         check("GET /submissions/{id} : relit la bonne réponse", status == 200 and isinstance(one, dict) and one.get("id") == submission_id, f"reçu {status} {one}")
 
-        #### 15. Suppression d'une réponse
         status, _ = call("DELETE", f"/forms/{form_id}/submissions/{submission_id}")
         check("DELETE /submissions/{id} : supprime (204)", status == 204, f"reçu {status}")
 
         status, submissions = call("GET", f"/forms/{form_id}/submissions")
         check("GET /submissions : 0 réponse après suppression", status == 200 and len(submissions) == 0, f"reçu {len(submissions) if submissions else 0}")
 
-        #### 16. Suppression d'un bloc
+        #### 12. Suppression d'un bloc
         status, _ = call("DELETE", f"/forms/{form_id}/blocks/{block_checkbox['id']}")
         check("DELETE /blocks/{id} : supprime (204)", status == 204, f"reçu {status}")
 
-        #### 17. Duplication : nouveau formulaire en draft, mêmes blocs, aucune réponse copiée
+        #### 13. Duplication : nouveau formulaire en draft, mêmes blocs, aucune réponse copiée
         status, current_blocks = call("GET", f"/forms/{form_id}/blocks")
         original_block_count = len(current_blocks) if isinstance(current_blocks, list) else None
 
@@ -260,33 +178,28 @@ def main():
             try:
                 status, dup_blocks = call("GET", f"/forms/{duplicate_id}/blocks")
                 dup_count = len(dup_blocks) if isinstance(dup_blocks, list) else None
-                check(
-                    "Duplication : même nombre de blocs que l'original",
-                    dup_count is not None and dup_count == original_block_count,
-                    f"original={original_block_count} copie={dup_count}",
-                )
+                check("Duplication : même nombre de blocs que l'original", dup_count is not None and dup_count == original_block_count, f"original={original_block_count} copie={dup_count}")
 
                 status, dup_submissions = call("GET", f"/forms/{duplicate_id}/submissions")
-                check(
-                    "Duplication : aucune réponse copiée",
-                    status == 200 and isinstance(dup_submissions, list) and len(dup_submissions) == 0,
-                    f"reçu {status} {dup_submissions}",
-                )
+                check("Duplication : aucune réponse copiée", status == 200 and isinstance(dup_submissions, list) and len(dup_submissions) == 0, f"reçu {status} {dup_submissions}")
             finally:
                 status, _ = call("DELETE", f"/forms/{duplicate_id}")
                 check("DELETE /forms/{id} : nettoyage du formulaire dupliqué (204)", status == 204, f"reçu {status}")
 
     finally:
-        #### 18. Nettoyage systématique -> supprime le formulaire de test, cascade sur ses blocs restants
+        #### 14. Nettoyage systématique -> supprime le formulaire de test, cascade sur ses blocs restants
         status, _ = call("DELETE", f"/forms/{form_id}")
         check("DELETE /forms/{id} : nettoyage du formulaire de test (204)", status == 204, f"reçu {status}")
+
+    #### Validation propre à chaque type de bloc -> un fichier par type, découvert automatiquement
+    run_block_type_tests()
 
     #### Résumé final
     total = len(results)
     passed = sum(1 for _, ok in results if ok)
     print(f"\n{passed}/{total} tests passés")
     if passed != total:
-        exit(1)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

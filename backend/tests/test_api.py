@@ -157,6 +157,38 @@ def main():
         status, submissions = call("GET", f"/forms/{form_id}/submissions")
         check("GET /submissions : 0 réponse après suppression", status == 200 and len(submissions) == 0, f"reçu {len(submissions) if submissions else 0}")
 
+        #### 11bis. Lien public : accessible une fois publié, sans jamais exposer form_id, régénérable
+        public_token = form["public_token"]
+
+        status, public_form = call("GET", f"/public/forms/{public_token}")
+        no_form_id_leak = isinstance(public_form, dict) and form_id not in str(public_form)
+        check("GET /public/forms/{token} : formulaire publié accessible, sans form_id", status == 200 and no_form_id_leak, f"reçu {status} {public_form}")
+
+        status, err = call("GET", "/public/forms/token-bidon-inexistant")
+        check("GET /public/forms/{token} : token inconnu rejeté (404)", status == 404, f"reçu {status} {err}")
+
+        status, _ = call(
+            "POST", f"/public/forms/{public_token}/submissions",
+            {"data": {block_text["id"]: "Marie", block_number["id"]: 3, block_checkbox["id"]: True, block_select["id"]: "Débutant"}},
+        )
+        check("POST /public/forms/{token}/submissions : réponse publique acceptée (204)", status == 204, f"reçu {status}")
+
+        #### On nettoie cette réponse tout de suite, pour ne pas fausser les comptages des étapes suivantes
+        status, public_submissions = call("GET", f"/forms/{form_id}/submissions")
+        if isinstance(public_submissions, list):
+            for s in public_submissions:
+                call("DELETE", f"/forms/{form_id}/submissions/{s['id']}")
+
+        status, regenerated = call("POST", f"/forms/{form_id}/regenerate-public-token")
+        new_token = regenerated.get("public_token") if isinstance(regenerated, dict) else None
+        check("POST /regenerate-public-token : nouveau token généré", status == 200 and new_token and new_token != public_token, f"reçu {status} {regenerated}")
+
+        status, err = call("GET", f"/public/forms/{public_token}")
+        check("GET /public/forms/{token} : ancien token révoqué après régénération (404)", status == 404, f"reçu {status} {err}")
+
+        status, one = call("GET", f"/public/forms/{new_token}")
+        check("GET /public/forms/{token} : nouveau token fonctionne", status == 200, f"reçu {status} {one}")
+
         #### 12. Suppression d'un bloc
         status, _ = call("DELETE", f"/forms/{form_id}/blocks/{block_checkbox['id']}")
         check("DELETE /blocks/{id} : supprime (204)", status == 204, f"reçu {status}")

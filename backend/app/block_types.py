@@ -40,17 +40,20 @@ class SelectConfig(BaseModel):
 #### Config attendue pour un paragraphe explicatif -> ne collecte aucune réponse
 class ParagraphConfig(BaseModel):
     content: str = ""
+    align: Literal["left", "center", "right", "justify"] = "left"
 
 
 #### Config attendue pour un bloc Markdown -> ne collecte aucune réponse
 class MarkdownConfig(BaseModel):
     content: str = ""
+    align: Literal["left", "center", "right", "justify"] = "left"
 
 
 #### Config attendue pour un titre de section -> ne collecte aucune réponse
 class HeadingConfig(BaseModel):
     content: str = ""
     level: int = 2  # H1 à H6
+    align: Literal["left", "center", "right", "justify"] = "left"
 
 
 #### Config attendue pour un espaceur -> ne collecte aucune réponse

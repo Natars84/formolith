@@ -1,12 +1,12 @@
 import { ChevronUp, ChevronDown, Trash2 } from "lucide-react";
 import FieldRenderer from "./FieldRenderer";
-import { getBlockTypeMeta } from "../lib/blockTypes";
+import { useBlockTypeMeta } from "../context/BlockTypesContext";
 
 const WIDTH_CLASS = { full: "block-item--full", half: "block-item--half", third: "block-item--third" };
 
 export default function BlockCanvasItem({ block, selected, isFirst, isLast, onSelect, onMoveUp, onMoveDown, onDelete }) {
   const widthClass = WIDTH_CLASS[block.width] || WIDTH_CLASS.full;
-  const showLabelAbove = getBlockTypeMeta(block.type)?.showLabelAbove;
+  const showLabelAbove = useBlockTypeMeta(block.type)?.showLabelAbove;
 
   return (
     <div className={`block-item ${widthClass} ${selected ? "block-item--selected" : ""}`}>

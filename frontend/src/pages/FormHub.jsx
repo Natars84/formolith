@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
-import { Trash2, Copy, Check, RefreshCw } from "lucide-react";
+import { Trash2, Copy, Check, RefreshCw, ExternalLink } from "lucide-react";
 import {
   getForm,
   listBlocks,
@@ -232,6 +232,10 @@ export default function FormHub() {
               value={publicLinkFor(form.public_token)}
               onFocus={(e) => e.target.select()}
             />
+            <a href={publicLinkFor(form.public_token)} target="_blank" rel="noreferrer" className="btn btn--ghost" title="Ouvrir dans un nouvel onglet">
+              <ExternalLink size={16} aria-hidden="true" />
+              <span className="sr-only">Ouvrir dans un nouvel onglet</span>
+            </a>
             <button type="button" className="btn btn--ghost" onClick={handleCopyLink} title="Copier le lien">
               {copyStatus === "copied" ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}
               <span className="sr-only">Copier le lien</span>

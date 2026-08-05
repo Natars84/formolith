@@ -14,6 +14,10 @@ import {
 import { useBlockTypes } from "../context/BlockTypesContext";
 import StatusBadge from "../components/StatusBadge";
 
+function formatDate(isoString) {
+  return new Date(isoString).toLocaleDateString("fr-FR");
+}
+
 //// Rendu texte d'une réponse selon le type de bloc -> "—" si laissé vide (jamais requis)
 function formatValue(block, value) {
   if (value === undefined || value === null || value === "") return "—";
@@ -235,6 +239,8 @@ export default function FormHub() {
             <StatusBadge status={form.status} />
             <span>{blocks.length} bloc{blocks.length === 1 ? "" : "s"}</span>
             <span>{submissions.length} réponse{submissions.length === 1 ? "" : "s"}</span>
+            <span>Créé le {formatDate(form.created_at)}</span>
+            <span>Modifié le {formatDate(form.updated_at)}</span>
           </div>
         </div>
       </div>

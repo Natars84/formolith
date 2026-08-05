@@ -88,7 +88,7 @@ def main():
         status, block_text = call("POST", f"/forms/{form_id}/blocks", {"type": "text", "label": "Prénom", "required": True})
         check("POST /blocks : bloc support (text)", status == 200, f"reçu {status} {block_text}")
 
-        status, block_number = call("POST", f"/forms/{form_id}/blocks", {"type": "number", "label": "Âge", "config": {"min": 0, "max": 10}})
+        status, block_number = call("POST", f"/forms/{form_id}/blocks", {"type": "number", "label": "Âge", "width": "half", "config": {"min": 0, "max": 10}})
         check("POST /blocks : bloc support (number)", status == 200, f"reçu {status} {block_number}")
 
         status, block_checkbox = call("POST", f"/forms/{form_id}/blocks", {"type": "checkbox", "label": "CGU acceptées"})
@@ -211,6 +211,14 @@ def main():
                 status, dup_blocks = call("GET", f"/forms/{duplicate_id}/blocks")
                 dup_count = len(dup_blocks) if isinstance(dup_blocks, list) else None
                 check("Duplication : même nombre de blocs que l'original", dup_count is not None and dup_count == original_block_count, f"original={original_block_count} copie={dup_count}")
+
+                #### La largeur (full/half/third) doit être conservée -> oubliée à l'implémentation initiale
+                dup_number_block = next((b for b in dup_blocks if b.get("label") == "Âge"), None) if isinstance(dup_blocks, list) else None
+                check(
+                    "Duplication : la largeur (width) des blocs est conservée",
+                    dup_number_block is not None and dup_number_block.get("width") == "half",
+                    f"reçu {dup_number_block}",
+                )
 
                 status, dup_submissions = call("GET", f"/forms/{duplicate_id}/submissions")
                 check("Duplication : aucune réponse copiée", status == 200 and isinstance(dup_submissions, list) and len(dup_submissions) == 0, f"reçu {status} {dup_submissions}")

@@ -4,7 +4,7 @@ services:
     env_file:
       - .env
     ports:
-      - "8000:8000"
+      - "${API_PORT:-8000}:8000"
     depends_on:
       db:
         condition: service_healthy
@@ -33,7 +33,7 @@ services:
       #### "api" = nom du service ci-dessus, résolu par le réseau Docker interne
       API_UPSTREAM: http://api:8000
     ports:
-      - "8080:80"
+      - "${FRONTEND_PORT:-8080}:80"
     depends_on:
       - api
     restart: unless-stopped

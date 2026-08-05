@@ -97,53 +97,57 @@ export default function FormPreview() {
       <div className="page">
         <BackLink formId={formId} />
 
-        <div className="preview-banner">Aperçu — rien de ce que vous saisissez ici n'est enregistré.</div>
+        {submitted ? (
+          <div className="confirmation-screen">
+            <p className="preview-form__confirmation">Merci ! (Aperçu — cette réponse n'a pas été envoyée.)</p>
+          </div>
+        ) : (
+          <>
+            <div className="preview-banner">Aperçu — rien de ce que vous saisissez ici n'est enregistré.</div>
 
-        <h1 className="page-title">{form.title}</h1>
+            <h1 className="page-title public-form-title">{form.title}</h1>
 
-          {invalidBlockIds.size > 0 && (
-            <p className="preview-form__error-summary">Merci de compléter les champs obligatoires (en rouge ci-dessous).</p>
-          )}
+            {invalidBlockIds.size > 0 && (
+              <p className="preview-form__error-summary">Merci de compléter les champs obligatoires (en rouge ci-dessous).</p>
+            )}
 
-          <form className="preview-form" onSubmit={handleSubmit}>
-            {blocks.map((block) => {
-              const meta = getMeta(block.type);
-              const invalid = invalidBlockIds.has(block.id);
-              return (
-                <div key={block.id} className={`block-item ${WIDTH_CLASS[block.width] || WIDTH_CLASS.full} ${block.type === "checkbox" ? "block-item--center-content" : ""}`}>
-                  <div
-                    className={`block-item__body block-item__body--static ${!meta?.showLabelAbove ? "block-item__body--compact" : ""} ${invalid ? "block-item__body--invalid" : ""}`}
-                  >
-                    {meta?.showLabelAbove && (
-                      <span className="block-item__label">
-                        {block.label}
-                        {block.required && (
-                          <span className="block-item__required" aria-hidden="true">
-                            {" "}
-                            *
-                          </span>
-                        )}
-                      </span>
-                    )}
-                    <div className="field-preview">
-                      <FieldRenderer block={block} value={values[block.id]} onChange={(v) => updateValue(block.id, v)} />
+            <form className="preview-form" onSubmit={handleSubmit}>
+              {blocks.map((block) => {
+                const meta = getMeta(block.type);
+                const invalid = invalidBlockIds.has(block.id);
+                return (
+                  <div key={block.id} className={`block-item ${WIDTH_CLASS[block.width] || WIDTH_CLASS.full} ${block.type === "checkbox" ? "block-item--center-content" : ""}`}>
+                    <div
+                      className={`block-item__body block-item__body--static ${!meta?.showLabelAbove ? "block-item__body--compact" : ""} ${invalid ? "block-item__body--invalid" : ""}`}
+                    >
+                      {meta?.showLabelAbove && (
+                        <span className="block-item__label">
+                          {block.label}
+                          {block.required && (
+                            <span className="block-item__required" aria-hidden="true">
+                              {" "}
+                              *
+                            </span>
+                          )}
+                        </span>
+                      )}
+                      <div className="field-preview">
+                        <FieldRenderer block={block} value={values[block.id]} onChange={(v) => updateValue(block.id, v)} />
+                      </div>
+                      {invalid && <p className="field-preview__error">Réponse obligatoire.</p>}
                     </div>
-                    {invalid && <p className="field-preview__error">Réponse obligatoire.</p>}
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
 
-            {blocks.length > 0 && !submitted && (
-              <button type="submit" className="btn btn--primary preview-form__submit">
-                Envoyer mes réponses
-              </button>
-            )}
-
-            {submitted && (
-              <p className="preview-form__confirmation">Merci ! (Aperçu — cette réponse n'a pas été envoyée.)</p>
-            )}
-          </form>
+              {blocks.length > 0 && (
+                <button type="submit" className="btn btn--primary preview-form__submit">
+                  Envoyer mes réponses
+                </button>
+              )}
+            </form>
+          </>
+        )}
       </div>
     </div>
   );

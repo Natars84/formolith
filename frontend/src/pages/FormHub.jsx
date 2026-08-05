@@ -53,6 +53,7 @@ export default function FormHub() {
   const [busy, setBusy] = useState(false);
   const [copyStatus, setCopyStatus] = useState("idle"); // idle | copied | failed
   const [sort, setSort] = useState({ key: "submitted_at", direction: "desc" });
+  const [searchQuery, setSearchQuery] = useState("");
   const linkInputRef = useRef(null);
 
   function getMeta(type) {
@@ -218,9 +219,21 @@ export default function FormHub() {
 
   const dataBlocks = blocks.filter((block) => getMeta(block.type)?.collectsData);
 
+  //// Recherche sur le texte réellement affiché (date formatée + valeurs formatées),
+  //// pas sur les données brutes -> ce que la personne voit est ce qu'elle peut chercher
+  function matchesSearch(submission) {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return true;
+    const dateText = new Date(submission.submitted_at).toLocaleString("fr-FR");
+    if (dateText.toLowerCase().includes(query)) return true;
+    return dataBlocks.some((block) => formatValue(block, submission.data[block.id]).toLowerCase().includes(query));
+  }
+
+  const filteredSubmissions = submissions.filter(matchesSearch);
+
   //// Trie sur la valeur BRUTE (pas le texte affiché) -> un nombre trie numériquement,
   //// pas alphabétiquement (sinon "10" passerait avant "2")
-  const sortedSubmissions = [...submissions].sort((a, b) => {
+  const sortedSubmissions = [...filteredSubmissions].sort((a, b) => {
     const rawA = sort.key === "submitted_at" ? a.submitted_at : a.data[sort.key];
     const rawB = sort.key === "submitted_at" ? b.submitted_at : b.data[sort.key];
     const cmp = compareValues(rawA, rawB);
@@ -304,13 +317,29 @@ export default function FormHub() {
 
       <h2 className="section-title">Réponses</h2>
 
+      {submissions.length > 0 && (
+        <input
+          type="search"
+          className="submissions-search"
+          placeholder="Rechercher dans les réponses…"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+      )}
+
       {submissions.length === 0 && (
         <div className="state-panel">
           <p>Aucune réponse pour l'instant.</p>
         </div>
       )}
 
-      {submissions.length > 0 && (
+      {submissions.length > 0 && filteredSubmissions.length === 0 && (
+        <div className="state-panel">
+          <p>Aucune réponse ne correspond à « {searchQuery} ».</p>
+        </div>
+      )}
+
+      {filteredSubmissions.length > 0 && (
         <div className="submissions-table-wrapper">
           <table className="forms-table submissions-table">
             <thead>

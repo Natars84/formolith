@@ -33,6 +33,13 @@
   letter-spacing: -0.01em;
 }
 
+/* Titre du formulaire vu par un répondant (aperçu/public) -> centré, contrairement
+   aux titres de page admin (liste, gestion) qui restent alignés à gauche */
+.public-form-title {
+  text-align: center;
+  margin-bottom: var(--space-3);
+}
+
 .page-header__actions {
   display: flex;
   align-items: center;
@@ -877,10 +884,21 @@
   margin-top: var(--space-2);
 }
 
+/* Écran affiché à la place du formulaire une fois soumis -> centré sur les deux axes,
+   dans une hauteur généreuse pour que le centrage vertical ait un vrai effet visible */
+.confirmation-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+  text-align: center;
+}
+
 .preview-form__confirmation {
-  flex: 0 0 100%;
   color: var(--color-accent-dark);
   font-weight: 600;
+  font-size: var(--text-lg);
 }
 
 /* Barre d'outils Markdown */

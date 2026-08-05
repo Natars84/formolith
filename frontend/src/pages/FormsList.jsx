@@ -48,69 +48,71 @@ export default function FormsList() {
   }
 
   return (
-    <div className="page">
-      <div className="page-header">
-        <h1 className="page-title">Mes formulaires</h1>
-        <div className="page-header__actions">
-          {forms && forms.length > 0 && (
-            <div role="group" aria-label="Mode d'affichage">
-              <button
-                type="button"
-                className="btn btn--toggle"
-                aria-pressed={view === "cards"}
-                title="Vue en cartes"
-                onClick={() => switchView("cards")}
-              >
-                <LayoutGrid size={18} aria-hidden="true" />
-                <span className="sr-only">Vue en cartes</span>
-              </button>
-              <button
-                type="button"
-                className="btn btn--toggle"
-                aria-pressed={view === "table"}
-                title="Vue en tableau"
-                onClick={() => switchView("table")}
-              >
-                <List size={18} aria-hidden="true" />
-                <span className="sr-only">Vue en tableau</span>
-              </button>
-            </div>
-          )}
-          <button type="button" className="btn btn--primary" onClick={handleCreate} disabled={creating}>
-            + Nouveau formulaire
-          </button>
+    <div className="page-backdrop">
+      <div className="page">
+        <div className="page-header">
+          <h1 className="page-title">Mes formulaires</h1>
+          <div className="page-header__actions">
+            {forms && forms.length > 0 && (
+              <div role="group" aria-label="Mode d'affichage">
+                <button
+                  type="button"
+                  className="btn btn--toggle"
+                  aria-pressed={view === "cards"}
+                  title="Vue en cartes"
+                  onClick={() => switchView("cards")}
+                >
+                  <LayoutGrid size={18} aria-hidden="true" />
+                  <span className="sr-only">Vue en cartes</span>
+                </button>
+                <button
+                  type="button"
+                  className="btn btn--toggle"
+                  aria-pressed={view === "table"}
+                  title="Vue en tableau"
+                  onClick={() => switchView("table")}
+                >
+                  <List size={18} aria-hidden="true" />
+                  <span className="sr-only">Vue en tableau</span>
+                </button>
+              </div>
+            )}
+            <button type="button" className="btn btn--primary" onClick={handleCreate} disabled={creating}>
+              + Nouveau formulaire
+            </button>
+          </div>
         </div>
+
+        {error && (
+          <div className="state-panel state-panel--error">
+            <p className="state-panel__title">Impossible de charger les formulaires</p>
+            <p>Vérifiez que l'API est bien accessible, puis réessayez.</p>
+          </div>
+        )}
+
+        {!error && forms === null && (
+          <div className="state-panel">
+            <p>Chargement des formulaires…</p>
+          </div>
+        )}
+
+        {!error && forms !== null && forms.length === 0 && (
+          <div className="state-panel">
+            <p className="state-panel__title">Aucun formulaire pour l'instant</p>
+            <p>Créez le premier pour commencer.</p>
+          </div>
+        )}
+
+        {!error && forms && forms.length > 0 && view === "cards" && (
+          <div className="forms-grid">
+            {forms.map((form) => (
+              <FormCard key={form.id} form={form} />
+            ))}
+          </div>
+        )}
+
+        {!error && forms && forms.length > 0 && view === "table" && <FormsTable forms={forms} />}
       </div>
-
-      {error && (
-        <div className="state-panel state-panel--error">
-          <p className="state-panel__title">Impossible de charger les formulaires</p>
-          <p>Vérifiez que l'API est bien accessible, puis réessayez.</p>
-        </div>
-      )}
-
-      {!error && forms === null && (
-        <div className="state-panel">
-          <p>Chargement des formulaires…</p>
-        </div>
-      )}
-
-      {!error && forms !== null && forms.length === 0 && (
-        <div className="state-panel">
-          <p className="state-panel__title">Aucun formulaire pour l'instant</p>
-          <p>Créez le premier pour commencer.</p>
-        </div>
-      )}
-
-      {!error && forms && forms.length > 0 && view === "cards" && (
-        <div className="forms-grid">
-          {forms.map((form) => (
-            <FormCard key={form.id} form={form} />
-          ))}
-        </div>
-      )}
-
-      {!error && forms && forms.length > 0 && view === "table" && <FormsTable forms={forms} />}
     </div>
   );
 }

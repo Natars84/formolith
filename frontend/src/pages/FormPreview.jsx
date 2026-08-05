@@ -68,7 +68,7 @@ export default function FormPreview() {
 
   if (error) {
     return (
-      <div className="preview-backdrop">
+      <div className="page-backdrop">
         <div className="page">
           <BackLink formId={formId} />
           <div className="state-panel state-panel--error">
@@ -81,7 +81,7 @@ export default function FormPreview() {
 
   if (!form || !blocks) {
     return (
-      <div className="preview-backdrop">
+      <div className="page-backdrop">
         <div className="page">
           <BackLink formId={formId} />
           <div className="state-panel">
@@ -93,14 +93,13 @@ export default function FormPreview() {
   }
 
   return (
-    <div className="preview-backdrop">
-      <div className="page preview-page">
+    <div className="page-backdrop">
+      <div className="page">
         <BackLink formId={formId} />
 
         <div className="preview-banner">Aperçu — rien de ce que vous saisissez ici n'est enregistré.</div>
 
-        <div className="preview-sheet">
-          <h1 className="page-title">{form.title}</h1>
+        <h1 className="page-title">{form.title}</h1>
 
           {invalidBlockIds.size > 0 && (
             <p className="preview-form__error-summary">Merci de compléter les champs obligatoires (en rouge ci-dessous).</p>
@@ -145,7 +144,6 @@ export default function FormPreview() {
               <p className="preview-form__confirmation">Merci ! (Aperçu — cette réponse n'a pas été envoyée.)</p>
             )}
           </form>
-        </div>
       </div>
     </div>
   );

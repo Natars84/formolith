@@ -77,7 +77,7 @@ export default function FormPublic() {
 
   if (notFound) {
     return (
-      <div className="preview-backdrop">
+      <div className="page-backdrop">
         <div className="page">
           <div className="state-panel">
             <p className="state-panel__title">Ce formulaire n'est pas accessible</p>
@@ -90,7 +90,7 @@ export default function FormPublic() {
 
   if (error) {
     return (
-      <div className="preview-backdrop">
+      <div className="page-backdrop">
         <div className="page">
           <div className="state-panel state-panel--error">
             <p className="state-panel__title">Impossible de charger ce formulaire</p>
@@ -102,7 +102,7 @@ export default function FormPublic() {
 
   if (!form) {
     return (
-      <div className="preview-backdrop">
+      <div className="page-backdrop">
         <div className="page">
           <div className="state-panel">
             <p>Chargement…</p>
@@ -113,10 +113,9 @@ export default function FormPublic() {
   }
 
   return (
-    <div className="preview-backdrop">
-      <div className="page preview-page">
-        <div className="preview-sheet">
-          <h1 className="page-title">{form.title}</h1>
+    <div className="page-backdrop">
+      <div className="page">
+        <h1 className="page-title">{form.title}</h1>
 
           {invalidBlockIds.size > 0 && (
             <p className="preview-form__error-summary">Merci de compléter les champs obligatoires (en rouge ci-dessous).</p>
@@ -167,7 +166,6 @@ export default function FormPublic() {
           )}
 
           {submitted && <p className="preview-form__confirmation">Merci, votre réponse a bien été enregistrée !</p>}
-        </div>
       </div>
     </div>
   );

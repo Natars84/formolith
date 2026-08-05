@@ -494,6 +494,17 @@
   position: relative;
   border-radius: var(--radius);
 }
+/* Case à cocher : contenu sur une seule ligne, sans légende au-dessus -> quand
+   un voisin plus grand (même rangée en half/third) étire ce bloc, son contenu
+   doit se centrer verticalement plutôt que rester collé en haut */
+.block-item--center-content {
+  display: flex;
+}
+.block-item--center-content .block-item__body {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
 .block-item--full {
   flex: 0 0 100%;
 }

@@ -327,6 +327,29 @@
   text-overflow: ellipsis;
 }
 
+.submissions-table__sort {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  background: none;
+  border: none;
+  padding: 0;
+  min-height: auto;
+  font: inherit;
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-ink-faint);
+  font-weight: 600;
+  text-align: left;
+}
+.submissions-table__sort:hover {
+  color: var(--color-ink);
+}
+.submissions-table__sort--active {
+  color: var(--color-accent-dark);
+}
+
 /* États : chargement / vide / erreur */
 .state-panel {
   display: flex;

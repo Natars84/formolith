@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
-import { Trash2, Copy, Check, RefreshCw, ExternalLink } from "lucide-react";
+import { Trash2, Copy, Check, RefreshCw, ExternalLink, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import {
   getForm,
   listBlocks,
@@ -22,6 +22,21 @@ function formatValue(block, value) {
   return String(value);
 }
 
+//// Compare deux valeurs brutes (pas leur texte formaté) pour le tri -> une valeur
+//// manquante finit toujours en dernier, peu importe le sens du tri. Un nombre trie
+//// numériquement (10 après 2), pas alphabétiquement.
+function compareValues(a, b) {
+  const aEmpty = a === undefined || a === null || a === "";
+  const bEmpty = b === undefined || b === null || b === "";
+  if (aEmpty && bEmpty) return 0;
+  if (aEmpty) return 1;
+  if (bEmpty) return -1;
+  if (typeof a === "number" && typeof b === "number") return a - b;
+  if (typeof a === "boolean" && typeof b === "boolean") return Number(a) - Number(b);
+  if (Array.isArray(a) || Array.isArray(b)) return String(a).localeCompare(String(b), "fr");
+  return String(a).localeCompare(String(b), "fr", { numeric: true });
+}
+
 export default function FormHub() {
   const { formId } = useParams();
   const navigate = useNavigate();
@@ -33,6 +48,7 @@ export default function FormHub() {
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
   const [copyStatus, setCopyStatus] = useState("idle"); // idle | copied | failed
+  const [sort, setSort] = useState({ key: "submitted_at", direction: "desc" });
   const linkInputRef = useRef(null);
 
   function getMeta(type) {
@@ -161,6 +177,15 @@ export default function FormHub() {
     }
   }
 
+  //// Clic sur un en-tête : bascule sur cette colonne (tri ascendant par défaut),
+  //// ou inverse le sens si c'est déjà la colonne triée
+  function toggleSort(key) {
+    setSort((prev) => {
+      if (prev.key !== key) return { key, direction: "asc" };
+      return { key, direction: prev.direction === "asc" ? "desc" : "asc" };
+    });
+  }
+
   if (error) {
     return (
       <div className="page">
@@ -184,6 +209,15 @@ export default function FormHub() {
   }
 
   const dataBlocks = blocks.filter((block) => getMeta(block.type)?.collectsData);
+
+  //// Trie sur la valeur BRUTE (pas le texte affiché) -> un nombre trie numériquement,
+  //// pas alphabétiquement (sinon "10" passerait avant "2")
+  const sortedSubmissions = [...submissions].sort((a, b) => {
+    const rawA = sort.key === "submitted_at" ? a.submitted_at : a.data[sort.key];
+    const rawB = sort.key === "submitted_at" ? b.submitted_at : b.data[sort.key];
+    const cmp = compareValues(rawA, rawB);
+    return sort.direction === "asc" ? cmp : -cmp;
+  });
 
   return (
     <div className="page">
@@ -270,15 +304,15 @@ export default function FormHub() {
           <table className="forms-table submissions-table">
             <thead>
               <tr>
-                <th>Reçue le</th>
+                <SortableHeader label="Reçue le" sortKey="submitted_at" sort={sort} onToggle={toggleSort} />
                 {dataBlocks.map((block) => (
-                  <th key={block.id}>{block.label}</th>
+                  <SortableHeader key={block.id} label={block.label} sortKey={block.id} sort={sort} onToggle={toggleSort} />
                 ))}
                 <th></th>
               </tr>
             </thead>
             <tbody>
-              {submissions.map((submission) => (
+              {sortedSubmissions.map((submission) => (
                 <tr key={submission.id}>
                   <td>{new Date(submission.submitted_at).toLocaleString("fr-FR")}</td>
                   {dataBlocks.map((block) => (
@@ -310,5 +344,20 @@ function BackLink() {
     <Link to="/" className="btn btn--ghost back-link">
       ← Retour aux formulaires
     </Link>
+  );
+}
+
+//// En-tête de colonne cliquable : bascule le tri, montre le sens actif via une flèche
+function SortableHeader({ label, sortKey, sort, onToggle }) {
+  const active = sort.key === sortKey;
+  const Icon = active ? (sort.direction === "asc" ? ArrowUp : ArrowDown) : ArrowUpDown;
+
+  return (
+    <th>
+      <button type="button" className={`submissions-table__sort ${active ? "submissions-table__sort--active" : ""}`} onClick={() => onToggle(sortKey)}>
+        {label}
+        <Icon size={14} aria-hidden="true" />
+      </button>
+    </th>
   );
 }

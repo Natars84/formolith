@@ -115,19 +115,24 @@ export default function FormPublic() {
   return (
     <div className="page-backdrop">
       <div className="page">
-        <h1 className="page-title">{form.title}</h1>
+        {submitted ? (
+          <div className="confirmation-screen">
+            <p className="preview-form__confirmation">Merci, votre réponse a bien été enregistrée !</p>
+          </div>
+        ) : (
+          <>
+            <h1 className="page-title public-form-title">{form.title}</h1>
 
-          {invalidBlockIds.size > 0 && (
-            <p className="preview-form__error-summary">Merci de compléter les champs obligatoires (en rouge ci-dessous).</p>
-          )}
+            {invalidBlockIds.size > 0 && (
+              <p className="preview-form__error-summary">Merci de compléter les champs obligatoires (en rouge ci-dessous).</p>
+            )}
 
-          {submitError && (
-            <p className="preview-form__error-summary">
-              L'envoi a échoué. Vérifiez votre connexion et réessayez.
-            </p>
-          )}
+            {submitError && (
+              <p className="preview-form__error-summary">
+                L'envoi a échoué. Vérifiez votre connexion et réessayez.
+              </p>
+            )}
 
-          {!submitted && (
             <form className="preview-form" onSubmit={handleSubmit}>
               {form.blocks.map((block) => {
                 const meta = getMeta(block.type);
@@ -163,9 +168,8 @@ export default function FormPublic() {
                 </button>
               )}
             </form>
-          )}
-
-          {submitted && <p className="preview-form__confirmation">Merci, votre réponse a bien été enregistrée !</p>}
+          </>
+        )}
       </div>
     </div>
   );

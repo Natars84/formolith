@@ -110,7 +110,7 @@ export default function FormPreview() {
               const meta = getMeta(block.type);
               const invalid = invalidBlockIds.has(block.id);
               return (
-                <div key={block.id} className={`block-item ${WIDTH_CLASS[block.width] || WIDTH_CLASS.full}`}>
+                <div key={block.id} className={`block-item ${WIDTH_CLASS[block.width] || WIDTH_CLASS.full} ${block.type === "checkbox" ? "block-item--center-content" : ""}`}>
                   <div
                     className={`block-item__body block-item__body--static ${!meta?.showLabelAbove ? "block-item__body--compact" : ""} ${invalid ? "block-item__body--invalid" : ""}`}
                   >

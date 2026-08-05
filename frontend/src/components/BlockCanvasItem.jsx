@@ -9,7 +9,7 @@ export default function BlockCanvasItem({ block, selected, isFirst, isLast, onSe
   const showLabelAbove = useBlockTypeMeta(block.type)?.showLabelAbove;
 
   return (
-    <div className={`block-item ${widthClass} ${selected ? "block-item--selected" : ""}`}>
+    <div className={`block-item ${widthClass} ${block.type === "checkbox" ? "block-item--center-content" : ""} ${selected ? "block-item--selected" : ""}`}>
       <div className="block-item__toolbar">
         <button
           type="button"

@@ -188,10 +188,12 @@ export default function FormHub() {
 
   if (error) {
     return (
-      <div className="page">
-        <BackLink />
-        <div className="state-panel state-panel--error">
-          <p className="state-panel__title">Impossible de charger ce formulaire</p>
+      <div className="page-backdrop">
+        <div className="page">
+          <BackLink />
+          <div className="state-panel state-panel--error">
+            <p className="state-panel__title">Impossible de charger ce formulaire</p>
+          </div>
         </div>
       </div>
     );
@@ -199,10 +201,12 @@ export default function FormHub() {
 
   if (!form || !blocks) {
     return (
-      <div className="page">
-        <BackLink />
-        <div className="state-panel">
-          <p>Chargement…</p>
+      <div className="page-backdrop">
+        <div className="page">
+          <BackLink />
+          <div className="state-panel">
+            <p>Chargement…</p>
+          </div>
         </div>
       </div>
     );
@@ -220,8 +224,9 @@ export default function FormHub() {
   });
 
   return (
-    <div className="page">
-      <BackLink />
+    <div className="page-backdrop">
+      <div className="page">
+        <BackLink />
 
       <div className="page-header">
         <div>
@@ -335,6 +340,7 @@ export default function FormHub() {
           </table>
         </div>
       )}
+      </div>
     </div>
   );
 }

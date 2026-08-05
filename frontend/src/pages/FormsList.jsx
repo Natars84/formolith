@@ -6,6 +6,10 @@ import StatusBadge from "../components/StatusBadge";
 
 const VIEW_STORAGE_KEY = "formolith:forms-view";
 
+function formatDate(isoString) {
+  return new Date(isoString).toLocaleDateString("fr-FR");
+}
+
 export default function FormsList() {
   const navigate = useNavigate();
   const [forms, setForms] = useState(null);
@@ -121,6 +125,10 @@ function FormCard({ form }) {
   return (
     <article className="form-card">
       <h2 className="form-card__title">{form.title}</h2>
+      <div className="form-card__dates">
+        <span>Créé le {formatDate(form.created_at)}</span>
+        <span>Modifié le {formatDate(form.updated_at)}</span>
+      </div>
       <div className="form-card__footer">
         <StatusBadge status={form.status} />
         <Link to={`/forms/${form.id}`} className="btn btn--ghost">
@@ -138,6 +146,8 @@ function FormsTable({ forms }) {
         <tr>
           <th>Titre</th>
           <th>Statut</th>
+          <th>Créé le</th>
+          <th>Modifié le</th>
           <th></th>
         </tr>
       </thead>
@@ -148,6 +158,8 @@ function FormsTable({ forms }) {
             <td>
               <StatusBadge status={form.status} />
             </td>
+            <td>{formatDate(form.created_at)}</td>
+            <td>{formatDate(form.updated_at)}</td>
             <td>
               <Link to={`/forms/${form.id}`} className="btn btn--ghost">
                 Gérer

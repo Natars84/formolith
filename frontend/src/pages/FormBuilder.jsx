@@ -138,10 +138,12 @@ export default function FormBuilder() {
 
   if (error && !form) {
     return (
-      <div className="page">
-        <BackLink formId={formId} />
-        <div className="state-panel state-panel--error">
-          <p className="state-panel__title">Impossible de charger ce formulaire</p>
+      <div className="page-backdrop">
+        <div className="page">
+          <BackLink formId={formId} />
+          <div className="state-panel state-panel--error">
+            <p className="state-panel__title">Impossible de charger ce formulaire</p>
+          </div>
         </div>
       </div>
     );
@@ -149,10 +151,12 @@ export default function FormBuilder() {
 
   if (!form || !blocks) {
     return (
-      <div className="page">
-        <BackLink formId={formId} />
-        <div className="state-panel">
-          <p>Chargement…</p>
+      <div className="page-backdrop">
+        <div className="page">
+          <BackLink formId={formId} />
+          <div className="state-panel">
+            <p>Chargement…</p>
+          </div>
         </div>
       </div>
     );
@@ -161,11 +165,13 @@ export default function FormBuilder() {
   //// Garde-fou : un formulaire déjà publié ne se modifie jamais ici, seulement via duplication.
   if (form.status !== "draft") {
     return (
-      <div className="page">
-        <BackLink formId={formId} />
-        <div className="state-panel">
-          <p className="state-panel__title">Ce formulaire est {form.status === "published" ? "publié" : "archivé"}</p>
-          <p>Dupliquez-le depuis sa page de gestion pour le modifier.</p>
+      <div className="page-backdrop">
+        <div className="page">
+          <BackLink formId={formId} />
+          <div className="state-panel">
+            <p className="state-panel__title">Ce formulaire est {form.status === "published" ? "publié" : "archivé"}</p>
+            <p>Dupliquez-le depuis sa page de gestion pour le modifier.</p>
+          </div>
         </div>
       </div>
     );

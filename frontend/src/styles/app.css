@@ -197,6 +197,14 @@
   overflow-wrap: anywhere;
 }
 
+.form-card__dates {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--text-xs);
+  color: var(--color-ink-faint);
+}
+
 .form-card__footer {
   margin-top: auto;
   display: flex;

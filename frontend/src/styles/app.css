@@ -1,7 +1,20 @@
+/* Fond tinté derrière la page, feuille blanche centrée par-dessus -> système unique,
+   réutilisé partout (liste, gestion, builder, aperçu, formulaire public) */
+.page-backdrop {
+  min-height: 100%;
+  background: #f1ede0;
+  display: flex;
+  justify-content: center;
+  padding: var(--space-4);
+}
+
 .page {
-  max-width: 960px;
-  margin: 0 auto;
-  padding: var(--space-4) var(--space-3) var(--space-5);
+  width: 100%;
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
 }
 
 .page-header {
@@ -816,15 +829,6 @@
 
 /* ---------- Aperçu ---------- */
 
-.preview-backdrop {
-  min-height: 100%;
-  background: #f1ede0;
-}
-
-.preview-page {
-  max-width: 1040px;
-}
-
 .preview-banner {
   background: var(--color-draft-soft);
   color: var(--color-draft);
@@ -833,14 +837,6 @@
   font-size: var(--text-sm);
   font-weight: 600;
   margin-bottom: var(--space-3);
-}
-
-.preview-sheet {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-card);
-  padding: var(--space-4);
 }
 
 .preview-form {

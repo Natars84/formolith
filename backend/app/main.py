@@ -30,7 +30,7 @@ from app.schemas import (
     SubmissionRead,
 )
 
-app = FastAPI(title="FormBuilder API", version="0.3.0")
+app = FastAPI(title="FormBuilder API", version="0.3.1")
 
 #### Autorise le frontend (autre origine que l'API) à faire des appels depuis le navigateur
 #### TODO : restreindre à l'origine réelle du frontend une fois déployé, plutôt que "*"
@@ -132,6 +132,7 @@ def duplicate_form(form_id: uuid.UUID, db: Session = Depends(get_db)):
             type=block.type,
             label=block.label,
             required=block.required,
+            width=block.width,
             config=block.config,
         ))
 

@@ -9,6 +9,7 @@ services:
       db:
         condition: service_healthy
     restart: unless-stopped
+    mem_limit: 96M
 
   db:
     image: postgres:16-alpine
@@ -26,6 +27,7 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
+    mem_limit: 64M
 
   frontend:
     build: ./frontend
@@ -37,6 +39,7 @@ services:
     depends_on:
       - api
     restart: unless-stopped
+    mem_limit: 32M
 
 volumes:
   db_data:
